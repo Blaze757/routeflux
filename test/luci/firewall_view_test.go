@@ -208,7 +208,6 @@ func TestFirewallViewRemovesAdvancedRoutingControls(t *testing.T) {
 		"routeflux-firewall-help",
 		"firewall explain",
 		"Targets",
-		"Hosts",
 	} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("routing view must not contain %q", forbidden)
@@ -224,6 +223,8 @@ func TestFirewallViewPersistsOnlyOffAndBypassModes(t *testing.T) {
 	for _, want := range []string{
 		"'firewall', 'set', 'bypass'",
 		"'firewall', 'draft', 'bypass'",
+		"'firewall', 'set', 'hosts'",
+		"'firewall', 'draft', 'hosts'",
 		"'firewall', 'disable'",
 		"'dns', 'set', 'mode', 'system'",
 		"'dns', 'set', 'default'",

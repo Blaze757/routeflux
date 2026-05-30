@@ -20,6 +20,8 @@ const (
 	ProtocolTrojan Protocol = "trojan"
 	// ProtocolShadowsocks represents a Shadowsocks node.
 	ProtocolShadowsocks Protocol = "shadowsocks"
+	// ProtocolSocks represents a SOCKS node.
+	ProtocolSocks Protocol = "socks"
 )
 
 // Node is the normalized representation of a provider endpoint.

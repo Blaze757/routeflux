@@ -608,6 +608,11 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 		stream["grpcSettings"] = map[string]any{
 			"serviceName": node.Path,
 		}
+	case "xhttp":
+		stream["xhttpSettings"] = map[string]any{
+			"path": node.Path,
+			"host": node.Host,
+		}
 	}
 
 	switch node.Protocol {
@@ -664,6 +669,40 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 				},
 			},
 			StreamSettings: stream,
+		}, nil
+	case domain.ProtocolShadowsocks:
+		return xrayCommonOutbound{
+			Protocol: "shadowsocks",
+			Settings: map[string]any{
+				"servers": []map[string]any{
+					{
+						"address":  node.Address,
+						"port":     node.Port,
+						"method":   node.Encryption,
+						"password": node.Password,
+					},
+				},
+			},
+		}, nil
+	case domain.ProtocolSocks:
+		users := []map[string]any{}
+		if node.UUID != "" {
+			users = append(users, map[string]any{
+				"user": node.UUID,
+				"pass": node.Password,
+			})
+		}
+		return xrayCommonOutbound{
+			Protocol: "socks",
+			Settings: map[string]any{
+				"servers": []map[string]any{
+					{
+						"address": node.Address,
+						"port":    node.Port,
+						"users":   users,
+					},
+				},
+			},
 		}, nil
 	default:
 		return xrayCommonOutbound{}, fmt.Errorf("unsupported protocol %s", node.Protocol)

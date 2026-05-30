@@ -516,9 +516,14 @@ function canonicalFirewall(firewall) {
 	var split = normalizedSplitSettings(raw);
 	var drafts = raw.mode_drafts || {};
 	var draftSplit = drafts.split || {};
-	var bypassDraft = {
+	var draftBypass = {
 		'selectors': cloneSelectorSet(draftSplit.bypass || {}),
 		'excluded_sources': cleanList(draftSplit.excluded_sources || [])
+	};
+	var draftHosts = drafts.hosts || {};
+	var hostsDraft = {
+		'entries': cleanList(draftHosts.source_cidrs || []),
+		'input': ''
 	};
 	var currentMode = 'disabled';
 	var supported = true;
@@ -526,6 +531,10 @@ function canonicalFirewall(firewall) {
 	var activeBypass = {
 		'selectors': emptySelectorSet(),
 		'excluded_sources': []
+	};
+	var activeHosts = {
+		'entries': cleanList(raw.hosts || raw.source_cidrs || []),
+		'input': ''
 	};
 	var summaryLines = [];
 
@@ -537,13 +546,16 @@ function canonicalFirewall(firewall) {
 				'excluded_sources': cleanList(split.excluded_sources || [])
 			};
 		}
+		else if (mode === 'hosts') {
+			currentMode = 'hosts';
+		}
 		else if (mode === 'disabled') {
 			currentMode = 'disabled';
 		}
 		else {
 			supported = false;
 			currentMode = mode;
-			warning = _('The current routing config uses an advanced RouteFlux mode. This Routing page only edits Off and Bypass; advanced routing stays in the CLI.');
+			warning = _('The current routing config uses an advanced RouteFlux mode. This Routing page only edits Off, Bypass, and Only Selected Devices; advanced routing stays in the CLI.');
 		}
 	}
 
@@ -570,7 +582,9 @@ function canonicalFirewall(firewall) {
 		'supported': supported,
 		'warning': warning,
 		'bypass': activeBypass,
-		'bypass_draft': bypassDraft,
+		'bypass_draft': draftBypass,
+		'hosts': activeHosts,
+		'hosts_draft': hostsDraft,
 		'summary_lines': summaryLines
 	};
 }
@@ -623,6 +637,9 @@ function buildFormState(firewall, dns) {
 	var excludedSources = routing.current_mode === 'bypass'
 		? routing.bypass.excluded_sources
 		: routing.bypass_draft.excluded_sources;
+	var hostsSources = routing.current_mode === 'hosts'
+		? routing.hosts.entries
+		: routing.hosts_draft.entries;
 
 	return {
 		'mode': routing.supported ? routing.current_mode : '',
@@ -630,7 +647,8 @@ function buildFormState(firewall, dns) {
 		'bypass': {
 			'selectors': selectorEditorFromSet(selectorSet),
 			'excluded': listEditorFromEntries(excludedSources)
-		}
+		},
+		'hosts': listEditorFromEntries(hostsSources)
 	};
 }
 
@@ -682,6 +700,9 @@ return view.extend({
 			}),
 			this.execJSON([ '--json', 'dns', 'get' ]).catch(function(err) {
 				return { '__error__': err.message || String(err) };
+			}),
+			fs.read('/tmp/dhcp.leases').catch(function() {
+				return '';
 			})
 		]);
 	},
@@ -766,6 +787,30 @@ return view.extend({
 			? data[3]
 			: ((status.settings || {}).dns || {});
 
+		var leasesContent = data[4] || '';
+		var leases = [];
+		var lines = leasesContent.split('\n');
+		for (var i = 0; i < lines.length; i++) {
+			var line = trim(lines[i]);
+			if (line === '')
+				continue;
+			var fields = line.split(/\s+/);
+			if (fields.length >= 4) {
+				var mac = fields[1];
+				var ip = fields[2];
+				var name = fields[3];
+				leases.push({
+					'mac': mac,
+					'ip': ip,
+					'name': name === '*' ? '' : name
+				});
+			}
+		}
+		leases.sort(function(a, b) {
+			return a.ip.localeCompare(b.ip, undefined, { numeric: true, sensitivity: 'base' });
+		});
+		this.leases = leases;
+
 		this.pageData = {
 			'status': status,
 			'firewall': canonicalFirewall(firewallPayload),
@@ -804,6 +849,46 @@ return view.extend({
 
 	handleExcludedInputChange: function(ev) {
 		this.formState.bypass.excluded.input = ev.currentTarget.value;
+	},
+
+	handleHostsInputChange: function(ev) {
+		this.formState.hosts.input = ev.currentTarget.value;
+	},
+
+	handleAddHost: function(ev) {
+		var list;
+		var parts;
+		var i;
+		var value;
+
+		if (ev && typeof ev.preventDefault === 'function')
+			ev.preventDefault();
+
+		list = this.formState.hosts;
+		parts = parseList(list.input);
+		for (i = 0; i < parts.length; i++) {
+			value = normalizeSourceSelector(parts[i]);
+			if (value === '')
+				continue;
+
+			list.entries = cleanList(list.entries.concat([ value ]));
+		}
+
+		list.input = '';
+		this.renderIntoRoot();
+	},
+
+	handleRemoveHost: function(value, ev) {
+		var list;
+
+		if (ev && typeof ev.preventDefault === 'function')
+			ev.preventDefault();
+
+		list = this.formState.hosts;
+		list.entries = cleanList(list.entries.filter(function(entry) {
+			return entry !== value;
+		}));
+		this.renderIntoRoot();
 	},
 
 	handleAddSelector: function(ev) {
@@ -892,6 +977,7 @@ return view.extend({
 		var desiredSelectors = selectorSetFromEditor(this.formState.bypass.selectors);
 		var desiredExcluded = listValues(this.formState.bypass.excluded);
 		var desiredSelectorValues = selectorValues(desiredSelectors);
+		var desiredHosts = listValues(this.formState.hosts);
 		var commands = [];
 		var draftCommand = [ 'firewall', 'draft', 'bypass' ];
 		var bypassCommand = [ 'firewall', 'set', 'bypass' ];
@@ -903,7 +989,7 @@ return view.extend({
 			ev.preventDefault();
 
 		if (!routing.supported && mode === '') {
-			ui.addNotification(null, notificationParagraph(_('Choose Off or Bypass to replace the current advanced routing setup.')));
+			ui.addNotification(null, notificationParagraph(_('Choose Off, Bypass, or Only Selected Devices to replace the current advanced routing setup.')));
 			return Promise.resolve();
 		}
 
@@ -912,9 +998,22 @@ return view.extend({
 			return Promise.resolve();
 		}
 
+		if (mode === 'hosts' && desiredHosts.length === 0) {
+			ui.addNotification(null, notificationParagraph(_('Only Selected Devices needs at least one target device.')));
+			return Promise.resolve();
+		}
+
 		if (!dnsState.supported && dnsChoice === '') {
 			ui.addNotification(null, notificationParagraph(_('Choose System DNS or the Recommended DNS preset here. Advanced DNS settings are available in the CLI.')));
 			return Promise.resolve();
+		}
+
+		var hostsDraftChanged = !sameList(desiredHosts, routing.hosts_draft.entries);
+		if (hostsDraftChanged) {
+			if (desiredHosts.length > 0)
+				commands.push([ 'firewall', 'draft', 'hosts' ].concat(desiredHosts));
+			else
+				commands.push([ 'firewall', 'draft', 'hosts' ]);
 		}
 
 		draftChanged = !sameSelectorSet(desiredSelectors, routing.bypass_draft.selectors) ||
@@ -937,6 +1036,15 @@ return view.extend({
 			if (routingChanged) {
 				appendStringSliceFlags(bypassCommand, '--exclude-host', desiredExcluded);
 				commands.push(bypassCommand.concat(desiredSelectorValues));
+			}
+		}
+		else if (mode === 'hosts') {
+			routingChanged = !routing.supported ||
+				routing.current_mode !== 'hosts' ||
+				!sameList(desiredHosts, routing.hosts.entries) ||
+				routing.enabled !== true;
+			if (routingChanged) {
+				commands.push([ 'firewall', 'set', 'hosts' ].concat(desiredHosts));
 			}
 		}
 		else if (mode === 'disabled') {
@@ -1031,6 +1139,39 @@ return view.extend({
 
 		if (rows.length === 0)
 			return E('div', { 'class': 'routeflux-routing-empty' }, [ _('No excluded devices added.') ]);
+
+		return E('div', { 'class': 'routeflux-routing-list' }, rows);
+	},
+
+	renderHostItems: function(list) {
+		var values = listValues(list);
+		var rows = [];
+
+		for (var i = 0; i < values.length; i++) {
+			var val = values[i];
+			var hostname = '';
+			for (var j = 0; j < this.leases.length; j++) {
+				if (this.leases[j].ip === val) {
+					hostname = this.leases[j].name;
+					break;
+				}
+			}
+
+			var displayVal = hostname ? '%s (%s)'.format(hostname, val) : val;
+
+			rows.push(E('div', { 'class': 'routeflux-routing-item' }, [
+				E('span', { 'class': 'routeflux-routing-badge routeflux-routing-badge-host' }, [ _('Device') ]),
+				E('span', { 'class': 'routeflux-routing-item-value' }, [ displayVal ]),
+				E('button', {
+					'class': 'cbi-button cbi-button-remove',
+					'type': 'button',
+					'click': ui.createHandlerFn(this, 'handleRemoveHost', val)
+				}, [ _('Remove') ])
+			]));
+		}
+
+		if (rows.length === 0)
+			return E('div', { 'class': 'routeflux-routing-empty' }, [ _('No targeted devices added yet.') ]);
 
 		return E('div', { 'class': 'routeflux-routing-list' }, rows);
 	},
@@ -1261,6 +1402,25 @@ return view.extend({
 									_('Proxy everything except the direct domains, IPv4 targets, and optional device exclusions listed below.')
 								])
 							])
+						]),
+						E('label', { 'class': choiceClass(this.formState.mode === 'hosts') }, [
+							E('input', {
+								'class': 'routeflux-routing-choice-control',
+								'type': 'radio',
+								'name': 'routeflux-routing-mode',
+								'value': 'hosts',
+								'checked': this.formState.mode === 'hosts' ? 'checked' : null,
+								'change': L.bind(function(ev) {
+									this.handleModeChange(ev);
+								}, this)
+							}),
+							E('span', { 'class': 'routeflux-routing-choice-indicator', 'aria-hidden': 'true' }, []),
+							E('span', { 'class': 'routeflux-routing-choice-copy' }, [
+								E('span', { 'class': 'routeflux-routing-choice-title' }, [ _('Only Selected Devices') ]),
+								E('span', { 'class': 'routeflux-routing-choice-description' }, [
+									_('Proxy only the specific client devices listed below. All other LAN devices will bypass RouteFlux and go direct.')
+								])
+							])
 						])
 					])
 				]),
@@ -1312,63 +1472,127 @@ return view.extend({
 				])
 			]),
 			E('div', { 'class': 'routeflux-routing-panel' }, [
-					E('div', { 'class': 'routeflux-routing-editor-head' }, [
-						E('span', { 'class': 'routeflux-routing-editor-kicker' }, [ _('Bypass') ]),
-						E('h3', {}, [ _('Keep Direct') ]),
-						E('p', { 'class': 'cbi-section-descr' }, [
-							_('Add direct domains or IPv4 selectors that should stay direct while bypass mode is active. Reusable aliases stay in the CLI-only workflow.')
-						])
-					]),
-					E('div', { 'class': 'routeflux-routing-editor-grid' }, [
-						E('div', { 'class': 'cbi-value' }, [
-							E('label', { 'class': 'cbi-value-title' }, [ _('Direct Domain or IPv4') ]),
-							E('div', { 'class': 'routeflux-routing-inline' }, [
-								E('input', {
-									'class': 'cbi-input-text',
-								'type': 'text',
-								'placeholder': _('Examples: gosuslugi.ru 203.0.113.10 203.0.113.10-203.0.113.20'),
-								'value': this.formState.bypass.selectors.selectorInput,
-								'input': L.bind(function(ev) {
-									this.handleSelectorInputChange(ev);
-								}, this)
-							}),
-							E('button', {
-								'class': 'cbi-button cbi-button-action',
-								'type': 'button',
-								'click': ui.createHandlerFn(this, 'handleAddSelector')
-							}, [ _('Add Selector') ])
-						])
-					])
-				]),
-				this.renderSelectorItems(this.formState.bypass.selectors),
-				E('div', { 'class': 'routeflux-routing-optional-shell' }, [
-					E('details', { 'class': 'routeflux-routing-optional' }, [
-						E('summary', {}, [ _('Excluded Devices') ]),
-						E('div', { 'class': 'routeflux-routing-editor-grid', 'style': 'margin-top:12px;' }, [
-							E('div', { 'class': 'cbi-value' }, [
-								E('label', { 'class': 'cbi-value-title' }, [ _('Excluded Devices') ]),
-								E('div', { 'class': 'routeflux-routing-inline' }, [
-									E('input', {
-										'class': 'cbi-input-text',
-										'type': 'text',
-										'placeholder': _('Examples: 192.168.1.50 192.168.1.0/24 192.168.1.10-192.168.1.20 all'),
-										'value': this.formState.bypass.excluded.input,
-										'input': L.bind(function(ev) {
-											this.handleExcludedInputChange(ev);
-										}, this)
-									}),
-									E('button', {
-										'class': 'cbi-button cbi-button-action',
-										'type': 'button',
-										'click': ui.createHandlerFn(this, 'handleAddExcluded')
-									}, [ _('Add') ])
+				(function(self) {
+					if (self.formState.mode === 'bypass') {
+						return E('div', {}, [
+							E('div', { 'class': 'routeflux-routing-editor-head' }, [
+								E('span', { 'class': 'routeflux-routing-editor-kicker' }, [ _('Bypass') ]),
+								E('h3', {}, [ _('Keep Direct') ]),
+								E('p', { 'class': 'cbi-section-descr' }, [
+									_('Add direct domains or IPv4 selectors that should stay direct while bypass mode is active. Reusable aliases stay in the CLI-only workflow.')
+								])
+							]),
+							E('div', { 'class': 'routeflux-routing-editor-grid' }, [
+								E('div', { 'class': 'cbi-value' }, [
+									E('label', { 'class': 'cbi-value-title' }, [ _('Direct Domain or IPv4') ]),
+									E('div', { 'class': 'routeflux-routing-inline' }, [
+										E('input', {
+											'class': 'cbi-input-text',
+											'type': 'text',
+											'placeholder': _('Examples: gosuslugi.ru 203.0.113.10 203.0.113.10-203.0.113.20'),
+											'value': self.formState.bypass.selectors.selectorInput,
+											'input': L.bind(function(ev) {
+												self.handleSelectorInputChange(ev);
+											}, self)
+										}),
+										E('button', {
+											'class': 'cbi-button cbi-button-action',
+											'type': 'button',
+											'click': ui.createHandlerFn(self, 'handleAddSelector')
+										}, [ _('Add Selector') ])
+									])
+								])
+							]),
+							self.renderSelectorItems(self.formState.bypass.selectors),
+							E('div', { 'class': 'routeflux-routing-optional-shell' }, [
+								E('details', { 'class': 'routeflux-routing-optional' }, [
+									E('summary', {}, [ _('Excluded Devices') ]),
+									E('div', { 'class': 'routeflux-routing-editor-grid', 'style': 'margin-top:12px;' }, [
+										E('div', { 'class': 'cbi-value' }, [
+											E('label', { 'class': 'cbi-value-title' }, [ _('Excluded Devices') ]),
+											E('div', { 'class': 'routeflux-routing-inline' }, [
+												E('input', {
+													'class': 'cbi-input-text',
+													'type': 'text',
+													'placeholder': _('Examples: 192.168.1.50 192.168.1.0/24 192.168.1.10-192.168.1.20 all'),
+													'value': self.formState.bypass.excluded.input,
+													'input': L.bind(function(ev) {
+														self.handleExcludedInputChange(ev);
+													}, self)
+												}),
+												E('button', {
+													'class': 'cbi-button cbi-button-action',
+													'type': 'button',
+													'click': ui.createHandlerFn(self, 'handleAddExcluded')
+												}, [ _('Add') ])
+											])
+										])
+									]),
+									self.renderExcludedItems(self.formState.bypass.excluded)
 								])
 							])
-						]),
-						this.renderExcludedItems(this.formState.bypass.excluded)
-					])
-				]),
-				E('div', { 'class': 'routeflux-routing-actions' }, [
+						]);
+					}
+					else if (self.formState.mode === 'hosts') {
+						return E('div', {}, [
+							E('div', { 'class': 'routeflux-routing-editor-head' }, [
+								E('span', { 'class': 'routeflux-routing-editor-kicker', 'style': 'background:rgba(99, 102, 241, 0.14); color:#4338ca;' }, [ _('Selected Devices') ]),
+								E('h3', {}, [ _('Targeted Devices') ]),
+								E('p', { 'class': 'cbi-section-descr' }, [
+									_('Add the client devices that should be routed through the tunnel. All other LAN devices will bypass RouteFlux and go direct.')
+								])
+							]),
+							E('div', { 'class': 'routeflux-routing-editor-grid' }, [
+								E('div', { 'class': 'cbi-value' }, [
+									E('label', { 'class': 'cbi-value-title' }, [ _('Select connected device or enter IP/MAC/range manually') ]),
+									E('div', { 'class': 'routeflux-routing-inline' }, [
+										self.leases.length > 0 ? E('select', {
+											'class': 'cbi-input-select',
+											'change': L.bind(function(ev) {
+												var ip = ev.currentTarget.value;
+												if (ip !== '') {
+													var inputEl = document.querySelector('#routeflux-hosts-input');
+													if (inputEl) {
+														inputEl.value = ip;
+														self.formState.hosts.input = ip;
+													}
+												}
+											}, self)
+										}, [
+											E('option', { 'value': '' }, [ _('-- Select a connected device --') ])
+										].concat(self.leases.map(function(lease) {
+											var displayName = lease.name ? '%s (%s)'.format(lease.name, lease.ip) : lease.ip;
+											return E('option', { 'value': lease.ip }, [ displayName ]);
+										}))) : '',
+										E('input', {
+											'id': 'routeflux-hosts-input',
+											'class': 'cbi-input-text',
+											'type': 'text',
+											'placeholder': _('Examples: 192.168.1.150, 00:11:22:33:44:55, 192.168.1.0/24'),
+											'value': self.formState.hosts.input,
+											'input': L.bind(function(ev) {
+												self.formState.hosts.input = ev.currentTarget.value;
+											}, self)
+										}),
+										E('button', {
+											'class': 'cbi-button cbi-button-action',
+											'type': 'button',
+											'click': ui.createHandlerFn(self, 'handleAddHost')
+										}, [ _('Add Device') ])
+									])
+								])
+							]),
+							self.renderHostItems(self.formState.hosts)
+						]);
+					}
+					else {
+						return E('div', { 'class': 'routeflux-routing-empty', 'style': 'text-align:center; padding:30px;' }, [
+							E('p', { 'style': 'font-size:16px; font-weight:700; margin-bottom:8px;' }, [ _('Routing is currently Off') ]),
+							E('p', { 'style': 'color:var(--routeflux-routing-ink-soft); margin:0;' }, [ _('Select Bypass or Only Selected Devices above to configure traffic interception.') ])
+						]);
+					}
+				})(this),
+				E('div', { 'class': 'routeflux-routing-actions', 'style': 'margin-top:20px;' }, [
 					E('button', {
 						'class': 'cbi-button cbi-button-apply',
 						'type': 'button',

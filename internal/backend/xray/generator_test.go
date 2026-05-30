@@ -61,6 +61,38 @@ func TestDNSBootstrapDomainsAndDirectDestinations(t *testing.T) {
 func TestOutboundForNodeSupportsVMessAndTrojan(t *testing.T) {
 	t.Parallel()
 
+	xhttpOutbound, err := outboundForNode(domain.Node{
+		Protocol:   domain.ProtocolVLESS,
+		Address:    "xhttp.example.com",
+		Port:       443,
+		UUID:       "11111111-1111-1111-1111-111111111111",
+		Security:   "reality",
+		ServerName: "edge.example.com",
+		Transport:  "xhttp",
+		Path:       "/xhttp-path",
+		Host:       "cdn.example.com",
+	})
+	if err != nil {
+		t.Fatalf("xhttp outbound: %v", err)
+	}
+	if xhttpOutbound.Protocol != "vless" {
+		t.Fatalf("unexpected xhttp outbound protocol: %q", xhttpOutbound.Protocol)
+	}
+	streamSettings, ok := xhttpOutbound.StreamSettings.(map[string]any)
+	if !ok {
+		t.Fatalf("expected stream settings map, got %T", xhttpOutbound.StreamSettings)
+	}
+	if streamSettings["network"] != "xhttp" {
+		t.Fatalf("unexpected network: %v", streamSettings["network"])
+	}
+	xhttpSettings, ok := streamSettings["xhttpSettings"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected xhttpSettings map, got %T", streamSettings["xhttpSettings"])
+	}
+	if xhttpSettings["path"] != "/xhttp-path" || xhttpSettings["host"] != "cdn.example.com" {
+		t.Fatalf("unexpected xhttpSettings: %+v", xhttpSettings)
+	}
+
 	vmessOutbound, err := outboundForNode(domain.Node{
 		Protocol:   domain.ProtocolVMess,
 		Address:    "vmess.example.com",
@@ -95,6 +127,34 @@ func TestOutboundForNodeSupportsVMessAndTrojan(t *testing.T) {
 	}
 	if trojanOutbound.Protocol != "trojan" {
 		t.Fatalf("unexpected trojan outbound protocol: %q", trojanOutbound.Protocol)
+	}
+
+	ssOutbound, err := outboundForNode(domain.Node{
+		Protocol:   domain.ProtocolShadowsocks,
+		Address:    "ss.example.com",
+		Port:       8388,
+		Password:   "pwd",
+		Encryption: "aes-256-gcm",
+	})
+	if err != nil {
+		t.Fatalf("shadowsocks outbound: %v", err)
+	}
+	if ssOutbound.Protocol != "shadowsocks" {
+		t.Fatalf("unexpected shadowsocks protocol: %q", ssOutbound.Protocol)
+	}
+
+	socksOutbound, err := outboundForNode(domain.Node{
+		Protocol: domain.ProtocolSocks,
+		Address:  "socks.example.com",
+		Port:     1080,
+		UUID:     "user",
+		Password: "pass",
+	})
+	if err != nil {
+		t.Fatalf("socks outbound: %v", err)
+	}
+	if socksOutbound.Protocol != "socks" {
+		t.Fatalf("unexpected socks protocol: %q", socksOutbound.Protocol)
 	}
 
 	if _, err := outboundForNode(domain.Node{Protocol: "unknown"}); err == nil {

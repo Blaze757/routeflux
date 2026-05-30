@@ -271,7 +271,7 @@ func transparentUDPSelector(settings domain.FirewallSettings) string {
 	if settings.BlockQUIC {
 		return "udp dport 443"
 	}
-	return "udp"
+	return "meta l4proto udp"
 }
 
 func resolveFirewallPolicy(settings domain.FirewallSettings) (firewallPolicy, error) {

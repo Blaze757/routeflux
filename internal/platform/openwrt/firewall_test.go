@@ -36,7 +36,7 @@ func TestBuildNFTablesRules(t *testing.T) {
 		"ip daddr @local_bypass_v4 return",
 		"ip saddr @source_v4 ip daddr @proxy_target_v4 tcp dport != 12345 redirect to :12345",
 		"chain prerouting_mangle",
-		"ip saddr @source_v4 ip daddr @proxy_target_v4 udp meta mark set 0x1 tproxy ip to :12345 accept",
+		"ip saddr @source_v4 ip daddr @proxy_target_v4 meta l4proto udp meta mark set 0x1 tproxy ip to :12345 accept",
 		"meta mark set 0x1",
 		"tproxy ip to :12345",
 		"chain prerouting",
@@ -75,7 +75,7 @@ func TestBuildNFTablesRulesSupportsTargetDomainsWithoutStaticCIDRs(t *testing.T)
 		"192.168.0.0/16",
 		"ip daddr @local_bypass_v4 return",
 		"ip saddr @source_v4 ip daddr @proxy_target_v4 tcp dport != 12345 redirect to :12345",
-		"ip saddr @source_v4 ip daddr @proxy_target_v4 udp meta mark set 0x1 tproxy ip to :12345 accept",
+		"ip saddr @source_v4 ip daddr @proxy_target_v4 meta l4proto udp meta mark set 0x1 tproxy ip to :12345 accept",
 		"chain output",
 	}
 	for _, want := range wants {
@@ -104,7 +104,7 @@ func TestBuildNFTablesRulesSupportsTargetServicesWithPresetCIDRs(t *testing.T) {
 		"91.108.0.0/16",
 		"149.154.0.0/16",
 		"ip saddr @source_v4 ip daddr @proxy_target_v4 tcp dport != 12345 redirect to :12345",
-		"ip saddr @source_v4 ip daddr @proxy_target_v4 udp meta mark set 0x1 tproxy ip to :12345 accept",
+		"ip saddr @source_v4 ip daddr @proxy_target_v4 meta l4proto udp meta mark set 0x1 tproxy ip to :12345 accept",
 	} {
 		if !strings.Contains(rules, want) {
 			t.Fatalf("rules missing %q\n%s", want, rules)
@@ -135,7 +135,7 @@ func TestBuildNFTablesRulesSupportsCustomTargetServices(t *testing.T) {
 	for _, want := range []string{
 		"104.18.0.0/15",
 		"ip saddr @source_v4 ip daddr @proxy_target_v4 tcp dport != 12345 redirect to :12345",
-		"ip saddr @source_v4 ip daddr @proxy_target_v4 udp meta mark set 0x1 tproxy ip to :12345 accept",
+		"ip saddr @source_v4 ip daddr @proxy_target_v4 meta l4proto udp meta mark set 0x1 tproxy ip to :12345 accept",
 	} {
 		if !strings.Contains(rules, want) {
 			t.Fatalf("rules missing %q\n%s", want, rules)
@@ -209,7 +209,7 @@ func TestBuildNFTablesRulesInterceptsAllUDPWhenQUICProxyingEnabled(t *testing.T)
 		t.Fatalf("build rules: %v", err)
 	}
 
-	want := "ip saddr @source_v4 udp meta mark set 0x1 tproxy ip to :12345 accept"
+	want := "ip saddr @source_v4 meta l4proto udp meta mark set 0x1 tproxy ip to :12345 accept"
 	if !strings.Contains(rules, want) {
 		t.Fatalf("rules missing %q\n%s", want, rules)
 	}

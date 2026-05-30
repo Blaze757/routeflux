@@ -19,7 +19,7 @@ fetch_text() {
 }
 
 run_upgrade() {
-	"${ROUTEFLUX_BINARY}" --upgrade
+	ROUTEFLUX_FORCE_UPGRADE=1 "${ROUTEFLUX_BINARY}" --upgrade
 }
 
 current_version=''

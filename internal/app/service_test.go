@@ -3728,6 +3728,102 @@ func TestRemoveAllSubscriptionsDisconnectsActiveSubscription(t *testing.T) {
 	}
 }
 
+func TestAddSubscriptionSavesToSharedServerList(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Add first singleton node raw
+	sub1, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		Raw: "vless://07d978e1-62f3-4ffa-9e28-60ac51d1bbb8@3.72.7.78:443?encryption=none&security=reality&sni=images.apple.com&fp=chrome&pbk=gJHWg7lnRExvVzbvZhoAA38du07j99lrVnYncuMTLDk&sid=22f15c12267a9b1d#Frankfurt",
+	})
+	if err != nil {
+		t.Fatalf("add first singleton: %v", err)
+	}
+
+	if sub1.ID != "server-list" {
+		t.Fatalf("expected subscription ID to be 'server-list', got %q", sub1.ID)
+	}
+	if len(sub1.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub1.Nodes))
+	}
+	if sub1.Nodes[0].SubscriptionID != "server-list" {
+		t.Fatalf("expected node subscription ID to be 'server-list', got %q", sub1.Nodes[0].SubscriptionID)
+	}
+
+	// Add second singleton node raw
+	sub2, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		Raw: "socks://YWxheGF5OmFsYXhheQ==@3.74.152.66:1080#Socks5",
+	})
+	if err != nil {
+		t.Fatalf("add second singleton: %v", err)
+	}
+
+	if sub2.ID != "server-list" {
+		t.Fatalf("expected subscription ID to remain 'server-list', got %q", sub2.ID)
+	}
+	if len(sub2.Nodes) != 2 {
+		t.Fatalf("expected 2 nodes total in shared server list, got %d", len(sub2.Nodes))
+	}
+	if sub2.Nodes[1].SubscriptionID != "server-list" {
+		t.Fatalf("expected second node subscription ID to be 'server-list', got %q", sub2.Nodes[1].SubscriptionID)
+	}
+}
+
+func TestRemoveSubscriptionNode(t *testing.T) {
+	t.Parallel()
+
+	node1 := domain.Node{ID: "node-1", Protocol: domain.ProtocolVLESS, Address: "1.1.1.1", SubscriptionID: "server-list"}
+	node2 := domain.Node{ID: "node-2", Protocol: domain.ProtocolSocks, Address: "2.2.2.2", SubscriptionID: "server-list"}
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "server-list",
+				SourceType:   domain.SourceTypeRaw,
+				DisplayName:  "Server List",
+				Nodes:        []domain.Node{node1, node2},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Remove node-1
+	err := service.RemoveSubscriptionNode(context.Background(), "server-list", "node-1")
+	if err != nil {
+		t.Fatalf("remove node-1: %v", err)
+	}
+
+	if len(store.subs) != 1 {
+		t.Fatalf("expected 1 subscription remaining, got %d", len(store.subs))
+	}
+	if len(store.subs[0].Nodes) != 1 {
+		t.Fatalf("expected 1 node remaining in server-list, got %d", len(store.subs[0].Nodes))
+	}
+	if store.subs[0].Nodes[0].ID != "node-2" {
+		t.Fatalf("expected node-2 to be the remaining node, got %q", store.subs[0].Nodes[0].ID)
+	}
+
+	// Remove node-2 (last node, should delete subscription)
+	err = service.RemoveSubscriptionNode(context.Background(), "server-list", "node-2")
+	if err != nil {
+		t.Fatalf("remove node-2: %v", err)
+	}
+
+	if len(store.subs) != 0 {
+		t.Fatalf("expected subscription to be deleted entirely when no nodes remain, got %d", len(store.subs))
+	}
+}
+
+
 type memoryStore struct {
 	subs     []domain.Subscription
 	settings domain.Settings

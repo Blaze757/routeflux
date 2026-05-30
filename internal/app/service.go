@@ -156,7 +156,7 @@ type subscriptionFetchResult struct {
 const (
 	subscriptionFetchMaxAttempts          = 3
 	subscriptionFetchBaseBackoff          = 250 * time.Millisecond
-	subscriptionFetchUserAgent            = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+	subscriptionFetchUserAgent            = "sing-box/1.10.0 RouteFlux/0.1.7"
 	subscriptionMetadataFallbackUserAgent = "curl/8.7.1"
 	subscriptionProfileTitleKey           = "Profile-Title"
 	subscriptionUserInfoKey               = "Subscription-Userinfo"
@@ -260,23 +260,55 @@ func (s *Service) addSubscription(ctx context.Context, req AddSubscriptionReques
 
 	now := time.Now().UTC()
 	storedSource := sourceOrURL(sourceType, req)
-	sub := domain.Subscription{
-		SourceType:         sourceType,
-		Source:             storedSource,
-		ProviderName:       providerName,
-		ProviderNameSource: providerNameSource,
-		DisplayName:        providerName,
-		LastUpdatedAt:      now,
-		ExpiresAt:          metadata.ExpiresAt,
-		Traffic:            metadata.Traffic,
-		RefreshInterval:    settings.RefreshInterval,
-		ParserStatus:       "ok",
-		Nodes:              nodes,
-	}
 
-	sub.ID = resolveAddSubscriptionID(subscriptions, sub)
-	for idx := range sub.Nodes {
-		sub.Nodes[idx].SubscriptionID = sub.ID
+	var sub domain.Subscription
+	if sourceType == domain.SourceTypeRaw {
+		subIdx := slices.IndexFunc(subscriptions, func(s domain.Subscription) bool { return s.ID == "server-list" })
+		if subIdx >= 0 {
+			sub = subscriptions[subIdx]
+		} else {
+			sub = domain.Subscription{
+				ID:                 "server-list",
+				SourceType:         domain.SourceTypeRaw,
+				Source:             "raw",
+				ProviderName:       "Server List",
+				ProviderNameSource: "default",
+				DisplayName:        "Server List",
+				RefreshInterval:    settings.RefreshInterval,
+				ParserStatus:       "ok",
+			}
+		}
+
+		sub.LastUpdatedAt = now
+
+		for _, newNode := range nodes {
+			newNode.SubscriptionID = "server-list"
+			nodeIdx := slices.IndexFunc(sub.Nodes, func(n domain.Node) bool { return n.ID == newNode.ID })
+			if nodeIdx >= 0 {
+				sub.Nodes[nodeIdx] = newNode
+			} else {
+				sub.Nodes = append(sub.Nodes, newNode)
+			}
+		}
+	} else {
+		sub = domain.Subscription{
+			SourceType:         sourceType,
+			Source:             storedSource,
+			ProviderName:       providerName,
+			ProviderNameSource: providerNameSource,
+			DisplayName:        providerName,
+			LastUpdatedAt:      now,
+			ExpiresAt:          metadata.ExpiresAt,
+			Traffic:            metadata.Traffic,
+			RefreshInterval:    settings.RefreshInterval,
+			ParserStatus:       "ok",
+			Nodes:              nodes,
+		}
+
+		sub.ID = resolveAddSubscriptionID(subscriptions, sub)
+		for idx := range sub.Nodes {
+			sub.Nodes[idx].SubscriptionID = sub.ID
+		}
 	}
 
 	upserted := upsertSubscription(subscriptions, sub)
@@ -301,6 +333,57 @@ func (s *Service) RemoveSubscription(ctx context.Context, id string) error {
 	return runStoreWriteLocked(s, func() error {
 		return s.removeSubscription(ctx, id)
 	})
+}
+
+// RemoveSubscriptionNode removes a specific node from a subscription.
+func (s *Service) RemoveSubscriptionNode(ctx context.Context, subID, nodeID string) error {
+	return runStoreWriteLocked(s, func() error {
+		return s.removeSubscriptionNode(ctx, subID, nodeID)
+	})
+}
+
+func (s *Service) removeSubscriptionNode(ctx context.Context, subID, nodeID string) error {
+	subscriptions, err := s.store.LoadSubscriptions()
+	if err != nil {
+		return fmt.Errorf("load subscriptions: %w", err)
+	}
+
+	subIdx := slices.IndexFunc(subscriptions, func(sub domain.Subscription) bool { return sub.ID == subID })
+	if subIdx < 0 {
+		return fmt.Errorf("subscription %q not found", subID)
+	}
+
+	sub := subscriptions[subIdx]
+	nodeIdx := slices.IndexFunc(sub.Nodes, func(n domain.Node) bool { return n.ID == nodeID })
+	if nodeIdx < 0 {
+		return fmt.Errorf("node %q not found in subscription %q", nodeID, subID)
+	}
+
+	state, stateErr := s.store.LoadState()
+	active := stateErr == nil && state.ActiveSubscriptionID == subID && state.ActiveNodeID == nodeID
+	if active {
+		if err := s.disconnectRuntime(ctx); err != nil {
+			return err
+		}
+	}
+
+	sub.Nodes = append(sub.Nodes[:nodeIdx], sub.Nodes[nodeIdx+1:]...)
+
+	if len(sub.Nodes) == 0 {
+		subscriptions = append(subscriptions[:subIdx], subscriptions[subIdx+1:]...)
+	} else {
+		subscriptions[subIdx] = sub
+	}
+
+	if err := s.store.SaveSubscriptions(subscriptions); err != nil {
+		return fmt.Errorf("save subscriptions: %w", err)
+	}
+
+	if !active {
+		return nil
+	}
+
+	return s.persistDisconnectedState(state)
 }
 
 func (s *Service) removeSubscription(ctx context.Context, id string) error {
@@ -564,14 +647,26 @@ func (s *Service) refreshSubscription(ctx context.Context, subscriptionID string
 		metadata = result.Metadata
 	}
 
-	providerName, displayName, providerNameSource := refreshedProviderIdentity(sub, metadata)
-	nodes, err := parser.ParseNodes(content, providerName)
-	if err != nil {
-		sub.LastError = err.Error()
-		sub.ParserStatus = "error"
-		subscriptions[index] = sub
-		_ = s.store.SaveSubscriptions(subscriptions)
-		return domain.Subscription{}, fmt.Errorf("parse subscription: %w", err)
+	var nodes []domain.Node
+	var providerName, displayName string
+	var providerNameSource domain.ProviderNameSource
+
+	if sub.ID == "server-list" {
+		nodes = sub.Nodes
+		providerName = sub.ProviderName
+		displayName = sub.DisplayName
+		providerNameSource = sub.ProviderNameSource
+	} else {
+		var err error
+		providerName, displayName, providerNameSource = refreshedProviderIdentity(sub, metadata)
+		nodes, err = parser.ParseNodes(content, providerName)
+		if err != nil {
+			sub.LastError = err.Error()
+			sub.ParserStatus = "error"
+			subscriptions[index] = sub
+			_ = s.store.SaveSubscriptions(subscriptions)
+			return domain.Subscription{}, fmt.Errorf("parse subscription: %w", err)
+		}
 	}
 
 	for idx := range nodes {

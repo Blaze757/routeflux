@@ -212,11 +212,102 @@ function buildSubscriptionPresentation(subscriptions) {
 	var groups = [];
 	var groupsByKey = {};
 	var byId = {};
+	var serverListSub = null;
 
+	// First pass: locate the real "server-list" subscription
 	for (var i = 0; i < subscriptions.length; i++) {
 		var sub = subscriptions[i];
+		if (sub && sub.id === 'server-list') {
+			serverListSub = Object.assign({}, sub);
+			serverListSub.is_virtual = true;
+			serverListSub.nodes = Array.isArray(sub.nodes) ? sub.nodes.slice() : [];
+			break;
+		}
+	}
+
+	// Also extract any other single raw server subscriptions (legacy singletons) and merge them in
+	for (var i = 0; i < subscriptions.length; i++) {
+		var sub = subscriptions[i];
+		if (sub && sub.id === 'server-list') {
+			continue;
+		}
+		var isSingleton = sub && sub.source_type === 'raw' && Array.isArray(sub.nodes) && sub.nodes.length === 1;
+
+		if (isSingleton) {
+			if (!serverListSub) {
+				serverListSub = {
+					id: 'server-list',
+					source_type: 'raw',
+					provider_name: _('Server List'),
+					provider_name_source: 'default',
+					display_name: _('Server List'),
+					last_updated_at: '',
+					expires_at: null,
+					traffic: null,
+					refresh_interval: '1h0m0s',
+					last_error: '',
+					parser_status: 'ok',
+					nodes: [],
+					is_virtual: true
+				};
+			}
+
+			var node = Object.assign({}, sub.nodes[0]);
+			serverListSub.nodes.push(node);
+		}
+	}
+
+	if (serverListSub) {
+		var group = {
+			key: 'server list',
+			title: _('Server List'),
+			items: [
+				{
+					subscription: serverListSub,
+					provider_title: _('Server List'),
+					profile_label: _('Server List')
+				}
+			],
+			total_nodes: serverListSub.nodes.length
+		};
+		groupsByKey['server list'] = group;
+		groups.push(group);
+
+		var virtualItem = group.items[0];
+		byId['server-list'] = virtualItem;
+
+		for (var i = 0; i < subscriptions.length; i++) {
+			var sub = subscriptions[i];
+			if (sub && sub.id === 'server-list') {
+				byId[trim(sub.id)] = virtualItem;
+				continue;
+			}
+			var isSingleton = sub && sub.source_type === 'raw' && Array.isArray(sub.nodes) && sub.nodes.length === 1;
+			if (isSingleton) {
+				byId[trim(sub.id)] = virtualItem;
+			}
+		}
+	}
+
+	// Second pass: process all other subscriptions
+	for (var i = 0; i < subscriptions.length; i++) {
+		var sub = subscriptions[i];
+		if (sub && sub.id === 'server-list') {
+			continue;
+		}
+		var isSingleton = sub && sub.source_type === 'raw' && Array.isArray(sub.nodes) && sub.nodes.length === 1;
+
+		if (isSingleton) {
+			continue;
+		}
+
 		var title = providerTitle(sub);
 		var key = title.toLowerCase();
+
+		if (key === 'server list') {
+			key = 'server list subscription';
+		}
+
 		var group = groupsByKey[key];
 
 		if (!group) {
@@ -1000,6 +1091,24 @@ return view.extend({
 		);
 	},
 
+	handleRemoveSubscriptionNode: function(subscriptionId, nodeId, nodeName, ev) {
+		if (ev && typeof ev.preventDefault === 'function')
+			ev.preventDefault();
+
+		if (!window.confirm(_('Remove server "%s"?').format(nodeName || nodeId)))
+			return Promise.resolve();
+
+		return this.runCLIAction(
+			this.nodeActionKey(subscriptionId, nodeId),
+			[ 'remove', subscriptionId, '--node', nodeId ],
+			_('Server removed.'),
+			_('Removing server...'),
+			{
+				'loadingMessage': _('Reloading subscriptions...')
+			}
+		);
+	},
+
 	handleCopySubscriptionID: function(subscriptionId, ev) {
 		if (ev && typeof ev.preventDefault === 'function')
 			ev.preventDefault();
@@ -1462,15 +1571,17 @@ return view.extend({
 			return E('p', {}, [ _('No nodes found in this subscription.') ]);
 
 		sortedEntries = nodes.map(L.bind(function(node, index) {
-			var isActive = subscription.id === activeSubscriptionId && node.id === activeNodeId;
-			var pingSort = this.nodePingSortMeta(subscription.id, node.id, status);
+			var nodeSubId = node.subscription_id || subscription.id;
+			var isActive = nodeSubId === activeSubscriptionId && node.id === activeNodeId;
+			var pingSort = this.nodePingSortMeta(nodeSubId, node.id, status);
 
 			return {
 				'node': node,
 				'original_index': index,
 				'is_active': isActive,
 				'ping_sort_bucket': pingSort.bucket,
-				'ping_latency_ms': pingSort.latency_ms
+				'ping_latency_ms': pingSort.latency_ms,
+				'real_subscription_id': nodeSubId
 			};
 		}, this));
 		sortedEntries.sort(L.bind(this.compareNodeTableEntries, this));
@@ -1478,11 +1589,14 @@ return view.extend({
 		var rows = sortedEntries.map(L.bind(function(entry) {
 			var node = entry.node;
 			var isActive = entry.is_active;
-			var autoExcluded = this.isNodeAutoExcluded(status, subscription.id, node.id);
-			var nodeBusy = this.isNodeBusy(subscription.id, node.id);
-			var busyMessage = this.nodeBusyMessage(subscription.id, node.id);
-			var pingBusy = this.isNodePingBusy(subscription.id, node.id);
-			var pingBusyMessage = this.nodePingBusyMessage(subscription.id, node.id);
+			var nodeSubId = entry.real_subscription_id;
+			var realSub = this.pageData[1].find(function(s) { return s.id === nodeSubId; }) || subscription;
+
+			var autoExcluded = this.isNodeAutoExcluded(status, nodeSubId, node.id);
+			var nodeBusy = this.isNodeBusy(nodeSubId, node.id);
+			var busyMessage = this.nodeBusyMessage(nodeSubId, node.id);
+			var pingBusy = this.isNodePingBusy(nodeSubId, node.id);
+			var pingBusyMessage = this.nodePingBusyMessage(nodeSubId, node.id);
 			var name = nodeDisplayName(node, node.id);
 			var address = firstNonEmpty([
 				node.address && node.port ? node.address + ':' + node.port : '',
@@ -1499,14 +1613,14 @@ return view.extend({
 				], 'routeflux-node-cell-primary'),
 				responsiveTableCell(_('Address'), address, 'routeflux-node-cell-address'),
 				responsiveTableCell(_('Stack'), renderNodeStackCell(node), 'routeflux-node-cell-stack'),
-				responsiveTableCell(_('Ping'), this.renderPingCell(subscription, node, status), 'routeflux-node-cell-ping'),
+				responsiveTableCell(_('Ping'), this.renderPingCell(realSub, node, status), 'routeflux-node-cell-ping'),
 				responsiveTableCell(_('Actions'), [
 					E('div', { 'class': 'routeflux-node-action-stack' }, [
 						E('div', { 'class': 'routeflux-node-actions' }, [
 							E('button', {
 								'class': 'cbi-button cbi-button-action routeflux-node-button-compact',
 								'type': 'button',
-								'click': ui.createHandlerFn(this, 'handleConnectNode', subscription.id, node.id),
+								'click': ui.createHandlerFn(this, 'handleConnectNode', nodeSubId, node.id),
 								'disabled': nodeBusy ? 'disabled' : null
 							}, [ _('Connect') ])
 						]),
@@ -1514,15 +1628,23 @@ return view.extend({
 							E('button', {
 								'class': 'cbi-button cbi-button-action routeflux-node-button-compact',
 								'type': 'button',
-								'click': ui.createHandlerFn(this, 'handleRecheckPing', subscription.id, node.id),
+								'click': ui.createHandlerFn(this, 'handleRecheckPing', nodeSubId, node.id),
 								'disabled': nodeBusy || pingBusy ? 'disabled' : null
 							}, [ _('Recheck') ]),
 							E('button', {
 								'class': 'cbi-button cbi-button-action routeflux-node-button-compact ' + (autoExcluded ? 'routeflux-node-button-allow' : 'routeflux-node-button-exclude'),
 								'type': 'button',
-								'click': ui.createHandlerFn(this, 'handleToggleAutoExcluded', subscription.id, node.id, !autoExcluded),
+								'click': ui.createHandlerFn(this, 'handleToggleAutoExcluded', nodeSubId, node.id, !autoExcluded),
 								'disabled': nodeBusy ? 'disabled' : null
-							}, [ autoExcluded ? _('Allow in Auto') : _('Exclude') ])
+							}, [ autoExcluded ? _('Allow in Auto') : _('Exclude') ]),
+							subscription.is_virtual ? E('button', {
+								'class': 'cbi-button cbi-button-negative routeflux-node-button-compact',
+								'type': 'button',
+								'click': nodeSubId === 'server-list'
+									? ui.createHandlerFn(this, 'handleRemoveSubscriptionNode', nodeSubId, node.id, node.name || node.id)
+									: ui.createHandlerFn(this, 'handleRemoveSubscription', nodeSubId, name),
+								'disabled': nodeBusy ? 'disabled' : null
+							}, [ _('Remove') ]) : ''
 						])
 					]),
 					busyMessage !== '' ? E('div', { 'class': 'routeflux-action-status' }, [ busyMessage ]) : '',
@@ -1551,6 +1673,13 @@ return view.extend({
 		var displayName = entry.profile_label;
 		var providerName = entry.provider_title;
 		var isActive = subscription.id === activeSubscriptionId;
+		if (subscription.is_virtual) {
+			isActive = this.pageData[1].some(function(s) {
+				var isSingleton = s.source_type === 'raw' && Array.isArray(s.nodes) && s.nodes.length === 1;
+				return isSingleton && s.id === activeSubscriptionId;
+			});
+		}
+
 		var subscriptionBusy = this.isSubscriptionBusy(subscription.id);
 		var busyMessage = this.subscriptionBusyMessage(subscription.id);
 		var pingBusy = this.isSubscriptionPingBusy(subscription.id);
@@ -1593,41 +1722,46 @@ return view.extend({
 		if (isActive)
 			heading.push(E('div', { 'class': 'routeflux-subscription-badges' }, [ badge(_('Active'), 'notice') ]));
 
+		var controls = [];
+		if (!subscription.is_virtual) {
+			controls = [
+				E('div', { 'class': 'routeflux-subscription-actions' }, [
+					E('button', {
+						'class': 'cbi-button cbi-button-action',
+						'type': 'button',
+						'click': ui.createHandlerFn(this, 'handleRefreshSubscription', subscription.id),
+						'disabled': subscriptionBusy ? 'disabled' : null
+					}, [ _('Refresh') ]),
+					E('button', {
+						'class': 'cbi-button cbi-button-apply',
+						'type': 'button',
+						'click': ui.createHandlerFn(this, 'handleConnectAuto', subscription.id),
+						'disabled': subscriptionBusy ? 'disabled' : null
+					}, [ _('Connect Auto') ]),
+					E('button', {
+						'class': 'cbi-button cbi-button-action',
+						'type': 'button',
+						'click': ui.createHandlerFn(this, 'handleCheckPing', subscription.id, nodesCount),
+						'disabled': subscriptionBusy || pingBusy ? 'disabled' : null
+					}, [ _('Check Ping') ]),
+					E('button', {
+						'class': 'cbi-button cbi-button-negative',
+						'type': 'button',
+						'click': ui.createHandlerFn(this, 'handleRemoveSubscription', subscription.id, displayName),
+						'disabled': subscriptionBusy ? 'disabled' : null
+					}, [ _('Remove') ])
+				]),
+				busyMessage !== '' ? E('div', { 'class': 'routeflux-action-status routeflux-action-status-group' }, [ busyMessage ]) : '',
+				pingBusyMessage !== '' ? E('div', { 'class': 'routeflux-action-status routeflux-action-status-group routeflux-ping-status-group' }, [ pingBusyMessage ]) : ''
+			];
+		}
+
 		return E('section', { 'class': 'cbi-section routeflux-surface routeflux-subscription-card' + (isActive ? ' routeflux-subscription-card-active' : '') }, [
 			E('div', { 'class': 'routeflux-subscription-header' }, [
 				E('div', { 'class': 'routeflux-subscription-heading' }, heading),
-				E('div', { 'class': 'routeflux-subscription-controls' }, [
-					E('div', { 'class': 'routeflux-subscription-actions' }, [
-						E('button', {
-							'class': 'cbi-button cbi-button-action',
-							'type': 'button',
-							'click': ui.createHandlerFn(this, 'handleRefreshSubscription', subscription.id),
-							'disabled': subscriptionBusy ? 'disabled' : null
-						}, [ _('Refresh') ]),
-						E('button', {
-							'class': 'cbi-button cbi-button-apply',
-							'type': 'button',
-							'click': ui.createHandlerFn(this, 'handleConnectAuto', subscription.id),
-							'disabled': subscriptionBusy ? 'disabled' : null
-						}, [ _('Connect Auto') ]),
-						E('button', {
-							'class': 'cbi-button cbi-button-action',
-							'type': 'button',
-							'click': ui.createHandlerFn(this, 'handleCheckPing', subscription.id, nodesCount),
-							'disabled': subscriptionBusy || pingBusy ? 'disabled' : null
-						}, [ _('Check Ping') ]),
-						E('button', {
-							'class': 'cbi-button cbi-button-negative',
-							'type': 'button',
-							'click': ui.createHandlerFn(this, 'handleRemoveSubscription', subscription.id, displayName),
-							'disabled': subscriptionBusy ? 'disabled' : null
-						}, [ _('Remove') ])
-					]),
-					busyMessage !== '' ? E('div', { 'class': 'routeflux-action-status routeflux-action-status-group' }, [ busyMessage ]) : '',
-					pingBusyMessage !== '' ? E('div', { 'class': 'routeflux-action-status routeflux-action-status-group routeflux-ping-status-group' }, [ pingBusyMessage ]) : ''
-				])
+				E('div', { 'class': 'routeflux-subscription-controls' }, controls)
 			]),
-			E('table', { 'class': 'table routeflux-meta-table routeflux-data-table' }, metaRows),
+			!subscription.is_virtual ? E('table', { 'class': 'table routeflux-meta-table routeflux-data-table' }, metaRows) : '',
 			this.renderAutoExclusionSummary(subscription, status),
 			trim(subscription.last_error) !== '' ? E('div', { 'class': 'alert-message warning', 'style': 'margin-top:10px' }, [
 				subscription.last_error

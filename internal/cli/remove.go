@@ -9,10 +9,11 @@ import (
 
 func newRemoveCmd(opts *rootOptions) *cobra.Command {
 	var removeAll bool
+	var nodeID string
 
 	cmd := &cobra.Command{
 		Use:   "remove <subscription-id-or-prefix>|all",
-		Short: "Remove imported subscriptions",
+		Short: "Remove imported subscriptions or individual nodes",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if removeAll {
 				if len(args) != 0 {
@@ -40,6 +41,13 @@ func newRemoveCmd(opts *rootOptions) *cobra.Command {
 			}
 
 			id := args[0]
+			if nodeID != "" {
+				if err := opts.service.RemoveSubscriptionNode(context.Background(), id, nodeID); err != nil {
+					return err
+				}
+				return printOutput(cmd, opts.jsonOutput, map[string]string{"removed_node": nodeID, "subscription": id}, fmt.Sprintf("Removed node %s from subscription %s", nodeID, id))
+			}
+
 			if err := opts.service.RemoveSubscription(context.Background(), id); err != nil {
 				return err
 			}
@@ -49,6 +57,7 @@ func newRemoveCmd(opts *rootOptions) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&removeAll, "all", false, "Remove all imported subscriptions")
+	cmd.Flags().StringVar(&nodeID, "node", "", "Remove specific node ID from the subscription")
 
 	return cmd
 }

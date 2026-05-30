@@ -73,6 +73,33 @@ func TestParseShadowsocksLink(t *testing.T) {
 	}
 }
 
+func TestParseSocksLink(t *testing.T) {
+	t.Parallel()
+
+	input := "socks://YWxheGF5OmFsYXhheQ==@3.74.152.66:1080#AWS-Germany-SOCKS"
+	nodes, err := parser.ParseNodes(input, "Example Provider")
+	if err != nil {
+		t.Fatalf("parse nodes: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	got := nodes[0]
+	if got.Protocol != "socks" {
+		t.Fatalf("expected socks protocol, got %+v", got)
+	}
+	if got.Address != "3.74.152.66" || got.Port != 1080 {
+		t.Fatalf("unexpected endpoint: %+v", got)
+	}
+	if got.UUID != "alaxay" || got.Password != "alaxay" {
+		t.Fatalf("unexpected credentials: %+v", got)
+	}
+	if got.Name != "AWS-Germany-SOCKS" || got.Remark != "AWS-Germany-SOCKS" {
+		t.Fatalf("unexpected label: %+v", got)
+	}
+}
+
 func TestParseXrayJSONConfig(t *testing.T) {
 	t.Parallel()
 
