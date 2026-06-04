@@ -22,9 +22,12 @@ The current runtime target is OpenWrt and compatible forks such as ImmortalWrt. 
 ## Features
 
 - Fast import flow for subscriptions, share links, and supported 3x-ui/Xray JSON files.
-- Support for VLESS, VMess, and Trojan nodes.
+- Support for VLESS, VMess, Trojan, and Socks5 proxy nodes.
 - Safe runtime updates with `xray -test`, last-known-good backup, and controlled service reloads.
 - Auto mode with health checks, live failover, anti-flap logic, and reboot-time runtime restore.
+- Dedicated Server List view for optimized management of subscriptions and single servers.
+- Only Selected Devices routing mode to direct only specified LAN hosts through the active proxy while leaving others direct.
+- Parallel latency checks and auto best-node connection when selecting duplicate server names.
 - Simple transparent routing rules for LAN hosts, destination targets, and split tunnelling policies.
 - Dedicated DNS commands with a sensible default profile for everyday router use.
 - Shared state across CLI, LuCI, and TUI, so you can switch interfaces without losing context.
