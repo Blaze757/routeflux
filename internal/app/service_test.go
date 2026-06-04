@@ -3786,10 +3786,10 @@ func TestRemoveSubscriptionNode(t *testing.T) {
 		state:    domain.DefaultRuntimeState(),
 		subs: []domain.Subscription{
 			{
-				ID:           "server-list",
-				SourceType:   domain.SourceTypeRaw,
-				DisplayName:  "Server List",
-				Nodes:        []domain.Node{node1, node2},
+				ID:          "server-list",
+				SourceType:  domain.SourceTypeRaw,
+				DisplayName: "Server List",
+				Nodes:       []domain.Node{node1, node2},
 			},
 		},
 	}
@@ -3822,7 +3822,6 @@ func TestRemoveSubscriptionNode(t *testing.T) {
 		t.Fatalf("expected subscription to be deleted entirely when no nodes remain, got %d", len(store.subs))
 	}
 }
-
 
 type memoryStore struct {
 	subs     []domain.Subscription
