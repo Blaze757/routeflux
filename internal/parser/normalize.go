@@ -37,6 +37,10 @@ func normalizeNode(node domain.Node, provider string) (domain.Node, error) {
 		}
 	case domain.ProtocolSocks:
 		// SOCKS allows optional credentials, so no strict UUID/Password validation
+	case domain.ProtocolHysteria, domain.ProtocolHysteria2:
+		if node.Password == "" {
+			return domain.Node{}, fmt.Errorf("%s node missing password", node.Protocol)
+		}
 	default:
 		return domain.Node{}, fmt.Errorf("unsupported protocol %q", node.Protocol)
 	}

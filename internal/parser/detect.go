@@ -10,7 +10,10 @@ func isNodeLink(input string) bool {
 		strings.HasPrefix(trimmed, "vmess://") ||
 		strings.HasPrefix(trimmed, "trojan://") ||
 		strings.HasPrefix(trimmed, "ss://") ||
-		strings.HasPrefix(trimmed, "socks://")
+		strings.HasPrefix(trimmed, "socks://") ||
+		strings.HasPrefix(trimmed, "hysteria://") ||
+		strings.HasPrefix(trimmed, "hysteria2://") ||
+		strings.HasPrefix(trimmed, "hy2://")
 }
 
 func looksLikeBase64Payload(input string) bool {

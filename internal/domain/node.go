@@ -22,6 +22,10 @@ const (
 	ProtocolShadowsocks Protocol = "shadowsocks"
 	// ProtocolSocks represents a SOCKS node.
 	ProtocolSocks Protocol = "socks"
+	// ProtocolHysteria represents a Hysteria v1 node.
+	ProtocolHysteria Protocol = "hysteria"
+	// ProtocolHysteria2 represents a Hysteria v2 node.
+	ProtocolHysteria2 Protocol = "hysteria2"
 )
 
 // Node is the normalized representation of a provider endpoint.

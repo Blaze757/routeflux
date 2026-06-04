@@ -157,6 +157,42 @@ func TestOutboundForNodeSupportsVMessAndTrojan(t *testing.T) {
 		t.Fatalf("unexpected socks protocol: %q", socksOutbound.Protocol)
 	}
 
+	hyOutbound, err := outboundForNode(domain.Node{
+		Protocol:   domain.ProtocolHysteria,
+		Address:    "hy.example.com",
+		Port:       443,
+		Password:   "auth_token",
+		ServerName: "sni.example.com",
+	})
+	if err != nil {
+		t.Fatalf("hysteria outbound: %v", err)
+	}
+	if hyOutbound.Protocol != "hysteria" {
+		t.Fatalf("unexpected hysteria protocol: %q", hyOutbound.Protocol)
+	}
+
+	hy2Outbound, err := outboundForNode(domain.Node{
+		Protocol:   domain.ProtocolHysteria2,
+		Address:    "hy2.example.com",
+		Port:       8443,
+		Password:   "pwd_token",
+		ServerName: "sni.example.com",
+		Extras: map[string]string{
+			"obfs":          "salamander",
+			"obfs-password": "obfspass",
+		},
+	})
+	if err != nil {
+		t.Fatalf("hysteria2 outbound: %v", err)
+	}
+	if hy2Outbound.Protocol != "hysteria" {
+		t.Fatalf("unexpected hysteria2 outbound protocol: %q", hy2Outbound.Protocol)
+	}
+	hy2Settings, ok := hy2Outbound.Settings.(map[string]any)
+	if !ok || hy2Settings["version"] != 2 {
+		t.Fatalf("expected version 2 in hysteria2 settings, got %+v", hy2Outbound.Settings)
+	}
+
 	if _, err := outboundForNode(domain.Node{Protocol: "unknown"}); err == nil {
 		t.Fatal("expected unsupported protocol to fail")
 	}

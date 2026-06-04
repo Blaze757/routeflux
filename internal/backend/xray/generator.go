@@ -704,6 +704,78 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 				},
 			},
 		}, nil
+	case domain.ProtocolHysteria:
+		auth := node.Password
+		if auth == "" {
+			auth = node.UUID
+		}
+		alpn := node.ALPN
+		if len(alpn) == 0 {
+			alpn = []string{"h3"}
+		}
+		return xrayCommonOutbound{
+			Protocol: "hysteria",
+			Settings: map[string]any{
+				"address": node.Address,
+				"port":    node.Port,
+				"auth":    auth,
+			},
+			StreamSettings: map[string]any{
+				"network":  "hysteria",
+				"security": "tls",
+				"tlsSettings": map[string]any{
+					"serverName":    node.ServerName,
+					"alpn":          alpn,
+					"allowInsecure": node.Extras["insecure"] == "1" || node.Extras["insecure"] == "true" || node.Extras["allowInsecure"] == "true",
+				},
+				"hysteriaSettings": map[string]any{
+					"auth": auth,
+				},
+			},
+		}, nil
+	case domain.ProtocolHysteria2:
+		auth := node.Password
+		if auth == "" {
+			auth = node.UUID
+		}
+		alpn := node.ALPN
+		if len(alpn) == 0 {
+			alpn = []string{"h3"}
+		}
+		settings := map[string]any{
+			"version": 2,
+			"address": node.Address,
+			"port":    node.Port,
+		}
+		obfs := node.Extras["obfs"]
+		obfsPassword := node.Extras["obfs-password"]
+		if obfs != "" && obfs != "none" {
+			settings["udpmasks"] = []map[string]any{
+				{
+					"type": obfs,
+					"settings": map[string]any{
+						"password": obfsPassword,
+					},
+				},
+			}
+		}
+		return xrayCommonOutbound{
+			Protocol: "hysteria",
+			Settings: settings,
+			StreamSettings: map[string]any{
+				"network":  "hysteria",
+				"security": "tls",
+				"tlsSettings": map[string]any{
+					"serverName":    node.ServerName,
+					"alpn":          alpn,
+					"allowInsecure": node.Extras["insecure"] == "1" || node.Extras["insecure"] == "true" || node.Extras["allowInsecure"] == "true",
+				},
+				"hysteriaSettings": map[string]any{
+					"version": 2,
+					"auth":    auth,
+				},
+			},
+		}, nil
 	default:
 		return xrayCommonOutbound{}, fmt.Errorf("unsupported protocol %s", node.Protocol)
 	}

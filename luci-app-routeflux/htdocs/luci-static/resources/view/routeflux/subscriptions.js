@@ -2037,7 +2037,7 @@ return view.extend({
 						E('textarea', {
 							'id': 'routeflux-add-source',
 							'class': 'cbi-input-textarea',
-							'placeholder': _('Paste an http(s) subscription URL, VLESS/VMess/Trojan/SS links, base64 payload, or Xray/3x-ui JSON.'),
+							'placeholder': _('Paste an http(s) subscription URL, VLESS/VMess/Trojan/SS/Socks5/Hysteria links, base64 payload, or Xray/3x-ui JSON.'),
 							'input': L.bind(function(ev) {
 								this.handleDraftInput('source', ev);
 							}, this)
@@ -2045,12 +2045,12 @@ return view.extend({
 					]),
 					E('div', { 'class': 'routeflux-add-format-list' }, [
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('http(s) URL') ]),
-						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('VLESS / VMess / Trojan / SS') ]),
+						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('VLESS / VMess / Trojan / SS / Socks5 / Hysteria') ]),
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('base64 payload') ]),
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('Xray / 3x-ui JSON') ])
 					]),
 					E('p', { 'class': 'routeflux-add-hint' }, [
-						_('Accepted input: an http(s) subscription URL; one or more VLESS, VMess, Trojan, or Shadowsocks links; a base64-encoded subscription payload; or an Xray/3x-ui JSON object or array with outbounds, protocol, config, or link.')
+						_('Accepted input: an http(s) subscription URL; one or more VLESS, VMess, Trojan, Shadowsocks, SOCKS5, or Hysteria links; a base64-encoded subscription payload; or an Xray/3x-ui JSON object or array with outbounds, protocol, config, or link.')
 					])
 				])
 			]),

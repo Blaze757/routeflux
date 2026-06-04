@@ -100,6 +100,69 @@ func TestParseSocksLink(t *testing.T) {
 	}
 }
 
+func TestParseHysteriaLink(t *testing.T) {
+	t.Parallel()
+
+	input := "hysteria://auth_token@hy.example.com:443?insecure=1&peer=sni.example.com#Hysteria-Node"
+	nodes, err := parser.ParseNodes(input, "Example Provider")
+	if err != nil {
+		t.Fatalf("parse nodes: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	got := nodes[0]
+	if got.Protocol != "hysteria" {
+		t.Fatalf("expected hysteria protocol, got %+v", got)
+	}
+	if got.Address != "hy.example.com" || got.Port != 443 {
+		t.Fatalf("unexpected endpoint: %+v", got)
+	}
+	if got.Password != "auth_token" || got.UUID != "auth_token" {
+		t.Fatalf("unexpected credentials: %+v", got)
+	}
+	if got.ServerName != "sni.example.com" {
+		t.Fatalf("unexpected SNI: %+v", got)
+	}
+	if got.Name != "Hysteria-Node" || got.Remark != "Hysteria-Node" {
+		t.Fatalf("unexpected label: %+v", got)
+	}
+}
+
+func TestParseHysteria2Link(t *testing.T) {
+	t.Parallel()
+
+	input := "hy2://password_token@hy2.example.com:8443?insecure=1&sni=sni.example.com&obfs=salamander&obfs-password=obfspass#Hysteria2-Node"
+	nodes, err := parser.ParseNodes(input, "Example Provider")
+	if err != nil {
+		t.Fatalf("parse nodes: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	got := nodes[0]
+	if got.Protocol != "hysteria2" {
+		t.Fatalf("expected hysteria2 protocol, got %+v", got)
+	}
+	if got.Address != "hy2.example.com" || got.Port != 8443 {
+		t.Fatalf("unexpected endpoint: %+v", got)
+	}
+	if got.Password != "password_token" || got.UUID != "password_token" {
+		t.Fatalf("unexpected credentials: %+v", got)
+	}
+	if got.ServerName != "sni.example.com" {
+		t.Fatalf("unexpected SNI: %+v", got)
+	}
+	if got.Extras["obfs"] != "salamander" || got.Extras["obfs-password"] != "obfspass" {
+		t.Fatalf("unexpected obfs settings: %+v", got)
+	}
+	if got.Name != "Hysteria2-Node" || got.Remark != "Hysteria2-Node" {
+		t.Fatalf("unexpected label: %+v", got)
+	}
+}
+
 func TestParseXrayJSONConfig(t *testing.T) {
 	t.Parallel()
 
