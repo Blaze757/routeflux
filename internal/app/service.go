@@ -523,7 +523,14 @@ func (s *Service) renameSubscription(id, name string) error {
 
 // ListSubscriptions returns the stored subscriptions.
 func (s *Service) ListSubscriptions() ([]domain.Subscription, error) {
-	return s.store.LoadSubscriptions()
+	subs, err := s.store.LoadSubscriptions()
+	if err != nil {
+		return nil, err
+	}
+	for idx := range subs {
+		subs[idx].Nodes = deduplicateNodesByName(subs[idx].Nodes)
+	}
+	return subs, nil
 }
 
 // ListNodes returns all nodes for a subscription.
@@ -533,7 +540,31 @@ func (s *Service) ListNodes(subscriptionID string) ([]domain.Node, error) {
 		return nil, err
 	}
 
-	return sub.Nodes, nil
+	return deduplicateNodesByName(sub.Nodes), nil
+}
+
+func nodeKeyName(node domain.Node) string {
+	name := strings.TrimSpace(node.Name)
+	if name == "" {
+		name = strings.TrimSpace(node.Remark)
+	}
+	if name == "" {
+		name = fmt.Sprintf("%s:%d", node.Address, node.Port)
+	}
+	return name
+}
+
+func deduplicateNodesByName(nodes []domain.Node) []domain.Node {
+	seen := make(map[string]bool)
+	unique := make([]domain.Node, 0, len(nodes))
+	for _, node := range nodes {
+		name := nodeKeyName(node)
+		if !seen[name] {
+			seen[name] = true
+			unique = append(unique, node)
+		}
+	}
+	return unique
 }
 
 // InspectXrayConfig renders the Xray config RouteFlux would generate for a node.
@@ -753,8 +784,55 @@ func (s *Service) connectManual(ctx context.Context, subscriptionID, nodeID stri
 		return fmt.Errorf("load state: %w", err)
 	}
 
-	s.logInfo("manual connect requested", "subscription", sub.ID, "node", node.ID)
-	if err := s.applyNodeSelection(ctx, sub, node, domain.SelectionModeManual, selectionOptionsForState(state)); err != nil {
+	targetName := nodeKeyName(node)
+	var sameNameNodes []domain.Node
+	for _, n := range sub.Nodes {
+		if nodeKeyName(n) == targetName {
+			sameNameNodes = append(sameNameNodes, n)
+		}
+	}
+
+	targetNode := node
+	if len(sameNameNodes) > 1 {
+		s.logInfo("multiple nodes with the same name found, selecting the best one", "name", targetName, "count", len(sameNameNodes))
+
+		type probeResult struct {
+			node domain.Node
+			res  probe.Result
+		}
+		resChan := make(chan probeResult, len(sameNameNodes))
+		for _, n := range sameNameNodes {
+			go func(nd domain.Node) {
+				res := s.checker.Check(ctx, nd)
+				resChan <- probeResult{node: nd, res: res}
+			}(n)
+		}
+
+		var bestNode domain.Node
+		var bestLatency time.Duration
+		foundHealthy := false
+
+		for i := 0; i < len(sameNameNodes); i++ {
+			pRes := <-resChan
+			if pRes.res.Healthy {
+				if !foundHealthy || pRes.res.Latency < bestLatency {
+					bestLatency = pRes.res.Latency
+					bestNode = pRes.node
+					foundHealthy = true
+				}
+			}
+		}
+
+		if foundHealthy {
+			targetNode = bestNode
+			s.logInfo("selected best node among duplicates", "name", targetName, "id", targetNode.ID, "latency", bestLatency)
+		} else {
+			s.logInfo("no healthy nodes found among duplicates, falling back to selected node", "name", targetName, "id", node.ID)
+		}
+	}
+
+	s.logInfo("manual connect requested", "subscription", sub.ID, "node", targetNode.ID)
+	if err := s.applyNodeSelection(ctx, sub, targetNode, domain.SelectionModeManual, selectionOptionsForState(state)); err != nil {
 		return err
 	}
 
@@ -765,7 +843,7 @@ func (s *Service) connectManual(ctx context.Context, subscriptionID, nodeID stri
 		_ = s.store.SaveSettings(settings)
 	}
 
-	s.logInfo("manual connect succeeded", "subscription", sub.ID, "node", node.ID)
+	s.logInfo("manual connect succeeded", "subscription", sub.ID, "node", targetNode.ID)
 	return nil
 }
 

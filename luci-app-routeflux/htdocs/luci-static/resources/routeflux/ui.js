@@ -268,8 +268,9 @@ return baseclass.extend({
 	showModal: function(title, body, options) {
 		var settings = options || {};
 		var buttons = Array.isArray(settings.actions) ? settings.actions.slice() : [];
-		var modalClass = trim(settings.modalClass || settings.bodyClass);
-		var bodyClass = appendClass('routeflux-modal-body', settings.bodyClass);
+		var themeClass = 'routeflux-theme-' + this.currentTheme();
+		var modalClass = appendClass(trim(settings.modalClass || settings.bodyClass), themeClass);
+		var bodyClass = appendClass(appendClass('routeflux-modal-body', settings.bodyClass), themeClass);
 
 		if (buttons.length === 0) {
 			buttons.push(E('button', {
@@ -281,18 +282,24 @@ return baseclass.extend({
 			}, [ _('Close') ]));
 		}
 
-		if (modalClass !== '') {
-			ui.showModal(title, [
+		var args = [
+			title,
+			[
 				E('div', { 'class': bodyClass }, normalizeChildren(body)),
 				E('div', { 'class': 'routeflux-modal-actions' }, buttons)
-			], modalClass);
-			return;
+			]
+		];
+
+		if (modalClass !== '') {
+			var classes = modalClass.split(/\s+/);
+			for (var i = 0; i < classes.length; i++) {
+				if (classes[i] !== '') {
+					args.push(classes[i]);
+				}
+			}
 		}
 
-		ui.showModal(title, [
-			E('div', { 'class': bodyClass }, normalizeChildren(body)),
-			E('div', { 'class': 'routeflux-modal-actions' }, buttons)
-		]);
+		ui.showModal.apply(ui, args);
 	},
 
 	renderSharedStyles: function() {
@@ -359,7 +366,7 @@ return baseclass.extend({
 			'.routeflux-page-shell pre { margin:0; padding:14px 16px; border:1px solid rgba(145, 175, 220, 0.14); border-radius:18px; background:rgba(6, 12, 22, 0.72); color:var(--routeflux-text-primary); overflow:auto; box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.03); }',
 			'.routeflux-page-shell code { display:inline-block; padding:1px 6px; border-radius:8px; background:rgba(145, 175, 220, 0.08); color:var(--routeflux-text-primary); }',
 			'.routeflux-page-shell pre code { display:inline; padding:0; border-radius:0; background:transparent; }',
-			'.routeflux-page-shell .cbi-page-actions { display:flex; flex-wrap:wrap; gap:10px; }',
+			'.routeflux-page-shell .cbi-page-actions { display:flex; flex-wrap:wrap; gap:10px; background:transparent !important; border:none !important; padding:0 !important; box-shadow:none !important; margin-top:12px !important; }',
 			'.routeflux-page-shell .cbi-button, .routeflux-page-shell .btn, .routeflux-button-primary, .routeflux-button-secondary, .routeflux-button-danger { display:inline-flex; align-items:center; justify-content:center; min-height:46px; padding:0 18px; border:1px solid rgba(145, 175, 220, 0.18); border-radius:16px; background:rgba(15, 24, 38, 0.82); color:var(--routeflux-text-primary); box-shadow:0 12px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03); transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease; }',
 			'.routeflux-page-shell .cbi-button:hover, .routeflux-page-shell .btn:hover, .routeflux-button-primary:hover, .routeflux-button-secondary:hover, .routeflux-button-danger:hover { transform:translateY(-1px); border-color:rgba(145, 190, 246, 0.28); box-shadow:0 16px 26px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04); }',
 			'.routeflux-page-shell .cbi-button:focus, .routeflux-page-shell .btn:focus, .routeflux-button-primary:focus, .routeflux-button-secondary:focus, .routeflux-button-danger:focus { outline:none; border-color:rgba(88, 196, 255, 0.56); box-shadow:0 0 0 1px rgba(88, 196, 255, 0.18), 0 0 0 8px rgba(88, 196, 255, 0.06); }',

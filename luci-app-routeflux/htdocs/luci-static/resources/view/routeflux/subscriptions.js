@@ -1572,7 +1572,7 @@ return view.extend({
 
 		sortedEntries = nodes.map(L.bind(function(node, index) {
 			var nodeSubId = node.subscription_id || subscription.id;
-			var isActive = nodeSubId === activeSubscriptionId && node.id === activeNodeId;
+			var isActive = nodeSubId === activeSubscriptionId && (node.id === activeNodeId || (status.active_node && nodeDisplayName(node, '') === nodeDisplayName(status.active_node, '')));
 			var pingSort = this.nodePingSortMeta(nodeSubId, node.id, status);
 
 			return {
