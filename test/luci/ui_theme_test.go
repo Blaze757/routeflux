@@ -61,7 +61,7 @@ func TestRouteFluxUISharedThemeUsesReadableLightPalette(t *testing.T) {
 		".routeflux-page-shell.routeflux-theme-light .cbi-section-descr, .routeflux-page-shell.routeflux-theme-light .cbi-value-description { color:var(--routeflux-text-secondary);",
 		".routeflux-page-shell.routeflux-theme-light pre { border-color:rgba(125, 146, 170, 0.16); background:linear-gradient(180deg, rgba(250, 252, 254, 0.98) 0%, rgba(243, 247, 251, 0.98) 100%);",
 		".routeflux-page-shell.routeflux-theme-light code { background:rgba(37, 99, 235, 0.08); color:#1e3a8a; }",
-		".routeflux-page-shell .cbi-page-actions { display:flex; flex-wrap:wrap; gap:10px; }",
+		".routeflux-page-shell .cbi-page-actions { display:flex; flex-wrap:wrap; gap:10px; background:transparent !important; border:none !important; padding:0 !important; box-shadow:none !important; margin-top:12px !important; }",
 		".routeflux-page-shell.routeflux-theme-light .cbi-button-apply, .routeflux-page-shell.routeflux-theme-light .btn.cbi-button-apply, .routeflux-theme-light .routeflux-button-primary { border-color:rgba(37, 99, 235, 0.34); background:linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);",
 		".routeflux-page-shell.routeflux-theme-light .cbi-button-action, .routeflux-page-shell.routeflux-theme-light .btn.cbi-button-action, .routeflux-theme-light .routeflux-button-secondary { border-color:rgba(37, 99, 235, 0.18); background:linear-gradient(180deg, rgba(243, 248, 253, 0.98) 0%, rgba(232, 240, 248, 0.98) 100%); color:#1d4ed8;",
 	} {

@@ -107,8 +107,8 @@ func TestAboutViewFormatsBuildDateAndSimplifiesWhatsNew(t *testing.T) {
 		"function formatBuildDate(value)",
 		"routefluxUI.renderSummaryCard(_('Build Date'), formattedBuildDate)",
 		"var versionText = 'RouteFlux ' + version + '\\nCommit: ' + commit + '\\nBuilt: ' + formattedBuildDate;",
-		"Simplified LuCI interface",
-		"LuCI now opens on Subscriptions, keeps Routing focused on direct selectors, and keeps Zapret focused on compact custom presets.",
+		"Only Selected Devices Mode",
+		"Optimized subscriptions and single servers by introducing the Server List",
 		"About intentionally keeps destructive maintenance actions out of LuCI.",
 	} {
 		if !strings.Contains(source, want) {

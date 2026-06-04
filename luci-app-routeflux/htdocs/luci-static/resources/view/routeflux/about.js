@@ -9,8 +9,23 @@ var routefluxSelfUpdateHelper = '/usr/libexec/routeflux-self-update';
 var whatsNewEntries = [
 	{
 		kind: _('New'),
-		title: _('Simplified LuCI interface'),
-		summary: _('LuCI now opens on Subscriptions, keeps Routing focused on direct selectors, and keeps Zapret focused on compact custom presets.')
+		title: _('Only Selected Devices Mode'),
+		summary: _('Added Only Selected Devices Mode')
+	},
+	{
+		kind: _('New'),
+		title: _('Server List'),
+		summary: _('Optimized subscriptions and single servers by introducing the Server List')
+	},
+	{
+		kind: _('New'),
+		title: _('Socks5 Proxy'),
+		summary: _('Added Socks5 proxy support')
+	},
+	{
+		kind: _('Fix'),
+		title: _('Duplicate Auto Nodes Fix'),
+		summary: _('Merged duplicate auto-connection servers into a single node that dynamically connects to the best one')
 	}
 ];
 
@@ -58,8 +73,11 @@ function formatBuildDate(value) {
 }
 
 function renderWhatsNewCard(entry) {
-	var className = 'routeflux-card routeflux-card-primary routeflux-about-update-card' +
-		(entry.kind === _('New') ? ' routeflux-about-update-card-new' : '');
+	var className = 'routeflux-card routeflux-card-primary routeflux-about-update-card';
+	if (entry.kind === _('New'))
+		className += ' routeflux-about-update-card-new';
+	else if (entry.kind === _('Fix'))
+		className += ' routeflux-about-update-card-fix';
 
 	return E('div', { 'class': className }, [
 		E('div', { 'class': 'routeflux-card-accent' }, []),
@@ -183,12 +201,29 @@ return view.extend({
 		content.push(routefluxUI.renderSharedStyles());
 		content.push(E('style', { 'type': 'text/css' }, [
 			'.routeflux-about-pre { white-space:pre-wrap; margin:0; }',
-			'.routeflux-about-update-grid { align-items:stretch; }',
+			'.routeflux-about-update-grid { display:grid !important; grid-template-columns:repeat(2, 1fr) !important; align-items:stretch; }',
+			'@media (max-width: 560px) { .routeflux-about-update-grid { grid-template-columns:1fr !important; } }',
 			'.routeflux-about-update-card { min-height:168px; }',
 			'.routeflux-about-update-card-new .routeflux-card-accent { background:linear-gradient(90deg, #22c55e 0%, #16a34a 100%); }',
+			'.routeflux-about-update-card-fix .routeflux-card-accent { background:linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }',
+			'.routeflux-theme-light .routeflux-about-update-card-new { border-color:rgba(34, 197, 94, 0.2); background:linear-gradient(180deg, rgba(250, 252, 250, 0.99) 0%, rgba(240, 253, 244, 0.99) 100%); }',
+			'.routeflux-theme-light .routeflux-about-update-card-new .routeflux-card-label { color:#15803d; }',
+			'.routeflux-theme-light .routeflux-about-update-card-new .routeflux-about-update-title { color:#14532d; }',
+			'.routeflux-theme-light .routeflux-about-update-card-fix { border-color:rgba(245, 158, 11, 0.2); background:linear-gradient(180deg, rgba(253, 250, 245, 0.99) 0%, rgba(254, 243, 199, 0.38) 100%); }',
+			'.routeflux-theme-light .routeflux-about-update-card-fix .routeflux-card-label { color:#b45309; }',
+			'.routeflux-theme-light .routeflux-about-update-card-fix .routeflux-about-update-title { color:#78350f; }',
 			'.routeflux-about-update-title { margin-bottom:10px; }',
 			'.routeflux-about-update-summary { margin:0; color:var(--routeflux-text-secondary); line-height:1.6; }',
-			'.routeflux-modal-help { margin:0 0 12px; color:var(--routeflux-text-secondary); max-width:100%; overflow-wrap:anywhere; word-break:break-word; line-height:1.45; }'
+			'.routeflux-modal-help { margin:0 0 12px; color:var(--routeflux-text-secondary); max-width:100%; overflow-wrap:anywhere; word-break:break-word; line-height:1.45; }',
+			'.routeflux-modal-whats-new.modal { border-radius:24px !important; padding:24px 28px !important; max-width:800px !important; width:92% !important; border:1px solid var(--routeflux-border) !important; box-shadow:var(--routeflux-shadow) !important; transition:background-color .22s ease, border-color .22s ease, color .22s ease; }',
+			'.routeflux-theme-dark.routeflux-modal-whats-new.modal { background:linear-gradient(180deg, rgba(20, 31, 49, 0.98) 0%, rgba(13, 21, 35, 1) 100%) !important; border-color:var(--routeflux-border-strong) !important; color:var(--routeflux-text-primary) !important; }',
+			'.routeflux-theme-light.routeflux-modal-whats-new.modal { background:linear-gradient(180deg, rgba(252, 253, 254, 0.99) 0%, rgba(246, 249, 252, 1) 100%) !important; border-color:rgba(37, 99, 235, 0.2) !important; color:var(--routeflux-text-primary) !important; }',
+			'.routeflux-modal-whats-new h4 { margin:0 0 16px !important; font-size:clamp(20px, 1.2vw + 15px, 26px) !important; font-weight:800 !important; letter-spacing:-0.03em !important; line-height:1.2 !important; color:var(--routeflux-text-primary) !important; }',
+			'.routeflux-modal-whats-new .routeflux-modal-actions { display:flex !important; justify-content:flex-end !important; gap:10px !important; margin-top:20px !important; padding-top:16px !important; border-top:1px solid var(--routeflux-border) !important; }',
+			'.routeflux-modal-whats-new .routeflux-modal-actions .cbi-button { min-height:42px !important; padding:0 22px !important; border-radius:14px !important; font-size:14px !important; font-weight:700 !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; border:1px solid rgba(145, 175, 220, 0.18) !important; background:rgba(15, 24, 38, 0.82) !important; color:var(--routeflux-text-primary) !important; box-shadow:0 12px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important; transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease !important; }',
+			'.routeflux-modal-whats-new .routeflux-modal-actions .cbi-button:hover { transform:translateY(-1px) !important; border-color:rgba(145, 190, 246, 0.28) !important; box-shadow:0 16px 26px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important; }',
+			'.routeflux-theme-light.routeflux-modal-whats-new .routeflux-modal-actions .cbi-button { border:1px solid rgba(125, 146, 170, 0.16) !important; background:linear-gradient(180deg, rgba(250, 252, 254, 0.98) 0%, rgba(241, 246, 251, 0.98) 100%) !important; color:var(--routeflux-text-primary) !important; box-shadow:0 10px 20px rgba(63, 87, 118, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.88) !important; }',
+			'.routeflux-theme-light.routeflux-modal-whats-new .routeflux-modal-actions .cbi-button:hover { border-color:rgba(37, 99, 235, 0.22) !important; box-shadow:0 12px 22px rgba(63, 87, 118, 0.1) !important; inset 0 1px 0 rgba(255, 255, 255, 0.9) !important; }'
 		]));
 
 		content.push(E('h2', {}, [ _('RouteFlux - About') ]));

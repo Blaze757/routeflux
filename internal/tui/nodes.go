@@ -40,7 +40,7 @@ func renderNodes(m model, maxLines int) string {
 		}
 
 		active := ""
-		if m.status.State.ActiveNodeID == node.ID {
+		if (m.status.ActiveNode != nil && nodeLabel(*m.status.ActiveNode) == nodeLabel(node)) || m.status.State.ActiveNodeID == node.ID {
 			active = " active"
 		}
 

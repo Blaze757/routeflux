@@ -3786,10 +3786,10 @@ func TestRemoveSubscriptionNode(t *testing.T) {
 		state:    domain.DefaultRuntimeState(),
 		subs: []domain.Subscription{
 			{
-				ID:           "server-list",
-				SourceType:   domain.SourceTypeRaw,
-				DisplayName:  "Server List",
-				Nodes:        []domain.Node{node1, node2},
+				ID:          "server-list",
+				SourceType:  domain.SourceTypeRaw,
+				DisplayName: "Server List",
+				Nodes:       []domain.Node{node1, node2},
 			},
 		},
 	}
@@ -3822,7 +3822,6 @@ func TestRemoveSubscriptionNode(t *testing.T) {
 		t.Fatalf("expected subscription to be deleted entirely when no nodes remain, got %d", len(store.subs))
 	}
 }
-
 
 type memoryStore struct {
 	subs     []domain.Subscription
@@ -4139,4 +4138,142 @@ func (r fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAddr
 		return result, nil
 	}
 	return nil, fmt.Errorf("missing fake resolver result for %s", host)
+}
+
+func TestConnectManualSelectsBestDuplicateNode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de1.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+					{
+						ID:       "node-2",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de2.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+					{
+						ID:       "node-3",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de3.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+
+	checker := &fakeChecker{
+		results: map[string]probe.Result{
+			"node-1": {
+				Healthy: true,
+				Latency: 200 * time.Millisecond,
+			},
+			"node-2": {
+				Healthy: true,
+				Latency: 50 * time.Millisecond,
+			},
+			"node-3": {
+				Healthy: false,
+				Latency: 0,
+			},
+		},
+	}
+
+	backend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: backend,
+		Checker: checker,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	state, err := store.LoadState()
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+
+	if state.ActiveNodeID != "node-2" {
+		t.Fatalf("expected active node to be node-2, got %q", state.ActiveNodeID)
+	}
+}
+
+func TestListNodesDeduplication(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de1.example.com",
+						Port:     443,
+					},
+					{
+						ID:       "node-2",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de2.example.com",
+						Port:     443,
+					},
+					{
+						ID:       "node-3",
+						Name:     "Other Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de3.example.com",
+						Port:     443,
+					},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	nodes, err := service.ListNodes("sub-1")
+	if err != nil {
+		t.Fatalf("list nodes: %v", err)
+	}
+
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 unique nodes, got %d: %+v", len(nodes), nodes)
+	}
+
+	if nodes[0].Name != "Auto Node" || nodes[1].Name != "Other Node" {
+		t.Fatalf("unexpected nodes: %+v", nodes)
+	}
+
+	subs, err := service.ListSubscriptions()
+	if err != nil {
+		t.Fatalf("list subscriptions: %v", err)
+	}
+
+	if len(subs) != 1 || len(subs[0].Nodes) != 2 {
+		t.Fatalf("expected 1 subscription with 2 nodes, got %+v", subs)
+	}
 }
