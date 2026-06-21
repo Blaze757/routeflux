@@ -348,11 +348,11 @@ func resolveFirewallPolicy(settings domain.FirewallSettings) (firewallPolicy, er
 }
 
 func (p firewallPolicy) needsDNSMasqNFTSet() bool {
-	hasProxyOutput := len(p.ProxyCIDRs) > 0 || len(p.ProxyDomains) > 0
 	if len(p.ProxyDomains) > 0 {
 		return true
 	}
-	return len(p.BypassDomains) > 0 && hasProxyOutput
+	hasProxyOutput := len(p.ProxyCIDRs) > 0 || len(p.ProxyDomains) > 0
+	return len(p.BypassDomains) > 0 && (hasProxyOutput || p.DefaultAction == domain.FirewallDefaultActionProxy)
 }
 
 func (p firewallPolicy) ProxyDomainsForDNSMasq() []string {

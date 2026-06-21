@@ -458,10 +458,16 @@ func TestFirewallManagerApplyConfiguresUDPPolicyRouting(t *testing.T) {
 	logPath := filepath.Join(dir, "calls.log")
 	nftPath := writeExecutable(t, filepath.Join(dir, "nft"), "#!/bin/sh\nprintf 'nft %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
 	ipPath := writeExecutable(t, filepath.Join(dir, "ip"), "#!/bin/sh\nprintf 'ip %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
+	dnsmasqPath := writeExecutable(t, filepath.Join(dir, "dnsmasq"), "#!/bin/sh\nif [ \"$1\" = \"--test\" ]; then\n  exit 0\nfi\necho 'Dnsmasq test binary'\n")
+	servicePath := writeExecutable(t, filepath.Join(dir, "dnsmasq-service"), "#!/bin/sh\nprintf '%s\\n' \"$1\" >> \""+logPath+"\"\nexit 0\n")
+	snippetPath := filepath.Join(dir, "routeflux.conf")
 	manager := FirewallManager{
-		NFTPath:   nftPath,
-		IPPath:    ipPath,
-		RulesPath: filepath.Join(dir, "routeflux-firewall.nft"),
+		NFTPath:            nftPath,
+		IPPath:             ipPath,
+		RulesPath:          filepath.Join(dir, "routeflux-firewall.nft"),
+		DNSMasqPath:        dnsmasqPath,
+		DNSMasqServicePath: servicePath,
+		DNSMasqSnippetPath: snippetPath,
 	}
 
 	settings := domain.FirewallSettings{

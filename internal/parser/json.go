@@ -59,15 +59,17 @@ type xrayStreamSettings struct {
 	Network     string `json:"network"`
 	Security    string `json:"security"`
 	TLSSettings struct {
-		ServerName  string   `json:"serverName"`
-		ALPN        []string `json:"alpn"`
-		Fingerprint string   `json:"fingerprint"`
+		ServerName    string   `json:"serverName"`
+		ALPN          []string `json:"alpn"`
+		Fingerprint   string   `json:"fingerprint"`
+		AllowInsecure bool     `json:"allowInsecure"`
 	} `json:"tlsSettings"`
 	RealitySettings struct {
 		ServerName  string `json:"serverName"`
 		PublicKey   string `json:"publicKey"`
 		ShortID     string `json:"shortId"`
 		Fingerprint string `json:"fingerprint"`
+		SpiderX     string `json:"spiderX"`
 	} `json:"realitySettings"`
 	WSSettings struct {
 		Path    string            `json:"path"`
@@ -76,6 +78,21 @@ type xrayStreamSettings struct {
 	GRPCSettings struct {
 		ServiceName string `json:"serviceName"`
 	} `json:"grpcSettings"`
+	HysteriaSettings struct {
+		Auth    string `json:"auth"`
+		Version int    `json:"version"`
+	} `json:"hysteriaSettings"`
+}
+
+type xrayHysteriaOutboundSettings struct {
+	Address  string `json:"address"`
+	Port     int    `json:"port"`
+	Version  int    `json:"version"`
+	Auth     string `json:"auth"`
+	UDPMasks []struct {
+		Type     string          `json:"type"`
+		Settings json.RawMessage `json:"settings"`
+	} `json:"udpmasks"`
 }
 
 type xrayJSONImportMetadata struct {
@@ -303,6 +320,7 @@ func parseJSONOutbound(raw json.RawMessage, provider, defaultLabel string) (doma
 			Fingerprint: firstNonEmpty(stream.RealitySettings.Fingerprint, stream.TLSSettings.Fingerprint),
 			PublicKey:   stream.RealitySettings.PublicKey,
 			ShortID:     stream.RealitySettings.ShortID,
+			SpiderX:     stream.RealitySettings.SpiderX,
 			Flow:        user.Flow,
 			Transport:   firstNonEmpty(stream.Network, "tcp"),
 			Path:        firstNonEmpty(stream.WSSettings.Path, stream.GRPCSettings.ServiceName),
@@ -332,6 +350,7 @@ func parseJSONOutbound(raw json.RawMessage, provider, defaultLabel string) (doma
 			Fingerprint: firstNonEmpty(stream.RealitySettings.Fingerprint, stream.TLSSettings.Fingerprint),
 			PublicKey:   stream.RealitySettings.PublicKey,
 			ShortID:     stream.RealitySettings.ShortID,
+			SpiderX:     stream.RealitySettings.SpiderX,
 			Transport:   firstNonEmpty(stream.Network, "tcp"),
 			Path:        firstNonEmpty(stream.WSSettings.Path, stream.GRPCSettings.ServiceName),
 			Host:        stream.WSSettings.Headers["Host"],
@@ -360,9 +379,65 @@ func parseJSONOutbound(raw json.RawMessage, provider, defaultLabel string) (doma
 			Fingerprint: firstNonEmpty(stream.RealitySettings.Fingerprint, stream.TLSSettings.Fingerprint),
 			PublicKey:   stream.RealitySettings.PublicKey,
 			ShortID:     stream.RealitySettings.ShortID,
+			SpiderX:     stream.RealitySettings.SpiderX,
 			Transport:   firstNonEmpty(stream.Network, "tcp"),
 			Path:        firstNonEmpty(stream.WSSettings.Path, stream.GRPCSettings.ServiceName),
 			Host:        stream.WSSettings.Headers["Host"],
+			Extras:      extras,
+		}
+		return normalizeNode(node, provider)
+	case "hysteria", "hysteria2":
+		var settings xrayHysteriaOutboundSettings
+		if err := json.Unmarshal(outbound.Settings, &settings); err != nil {
+			return domain.Node{}, fmt.Errorf("decode hysteria settings: %w", err)
+		}
+		if settings.Address == "" || settings.Port <= 0 {
+			return domain.Node{}, fmt.Errorf("invalid hysteria settings")
+		}
+
+		isV2 := strings.ToLower(outbound.Protocol) == "hysteria2" || settings.Version == 2 || stream.HysteriaSettings.Version == 2
+		protocol := domain.ProtocolHysteria
+		if isV2 {
+			protocol = domain.ProtocolHysteria2
+		}
+
+		auth := firstNonEmpty(stream.HysteriaSettings.Auth, settings.Auth)
+
+		if isV2 && len(settings.UDPMasks) > 0 {
+			mask := settings.UDPMasks[0]
+			if mask.Type != "" {
+				extras["obfs"] = mask.Type
+				if len(mask.Settings) > 0 {
+					var maskSettings struct {
+						Password string `json:"password"`
+					}
+					if err := json.Unmarshal(mask.Settings, &maskSettings); err == nil && maskSettings.Password != "" {
+						extras["obfs-password"] = maskSettings.Password
+					}
+				}
+			}
+		}
+
+		allowInsecure := "false"
+		if stream.TLSSettings.AllowInsecure {
+			allowInsecure = "true"
+		}
+		extras["allowInsecure"] = allowInsecure
+		extras["insecure"] = allowInsecure
+
+		node := domain.Node{
+			Name:        name,
+			Remark:      name,
+			Protocol:    protocol,
+			Address:     settings.Address,
+			Port:        settings.Port,
+			UUID:        auth,
+			Password:    auth,
+			Security:    stream.Security,
+			ServerName:  stream.TLSSettings.ServerName,
+			ALPN:        stream.TLSSettings.ALPN,
+			Fingerprint: stream.TLSSettings.Fingerprint,
+			Transport:   firstNonEmpty(stream.Network, "hysteria"),
 			Extras:      extras,
 		}
 		return normalizeNode(node, provider)

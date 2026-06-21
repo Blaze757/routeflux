@@ -59,7 +59,7 @@ func newRootCmd() *cobra.Command {
 			if opts.showVersion || opts.runUpgrade || cmd.Name() == "version" || cmd.Name() == "help" {
 				return nil
 			}
-			return opts.initService()
+			return opts.initService(cmd)
 		},
 	}
 
@@ -78,6 +78,8 @@ func newRootCmd() *cobra.Command {
 		newLogsCmd(opts),
 		newInspectCmd(opts),
 		newRemoveCmd(opts),
+		newMoveCmd(opts),
+		newRestartCmd(opts),
 		newRefreshCmd(opts),
 		newConnectCmd(opts),
 		newDisconnectCmd(opts),
@@ -92,7 +94,7 @@ func newRootCmd() *cobra.Command {
 	return cmd
 }
 
-func (o *rootOptions) initService() error {
+func (o *rootOptions) initService(cmd *cobra.Command) error {
 	if o.service != nil {
 		return nil
 	}
@@ -106,16 +108,21 @@ func (o *rootOptions) initService() error {
 		configPath = filepath.Join(root, "xray-config.json")
 	}
 
-	bootstrapLogger := newLogger("info")
+	logLevel := "warn"
+	if cmd.Name() == "daemon" {
+		logLevel = "info"
+		fileStoreTmp := store.NewFileStore(root)
+		if settings, err := fileStoreTmp.LoadSettings(); err == nil {
+			logLevel = settings.LogLevel
+		}
+	} else if os.Getenv("ROUTEFLUX_VERBOSE") == "1" {
+		logLevel = "debug"
+	}
+
+	bootstrapLogger := newLogger(logLevel)
 	fileStore := store.NewFileStore(root).WithLogger(bootstrapLogger)
 	if err := fileStore.HardenSecretPermissions(configPath); err != nil {
 		bootstrapLogger.Warn("harden secret storage permissions", "root", root, "config_path", configPath, "error", err.Error())
-	}
-	logLevel := "info"
-	if settings, err := fileStore.LoadSettings(); err == nil {
-		logLevel = settings.LogLevel
-	} else {
-		bootstrapLogger.Warn("load settings for logger level", "path", filepath.Join(root, "settings.json"), "error", err.Error())
 	}
 	logger := newLogger(logLevel)
 	fileStore.WithLogger(logger)

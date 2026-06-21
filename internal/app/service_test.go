@@ -3823,6 +3823,52 @@ func TestRemoveSubscriptionNode(t *testing.T) {
 	}
 }
 
+func TestMoveSubscription(t *testing.T) {
+	t.Parallel()
+
+	sub1 := domain.Subscription{ID: "sub-1", DisplayName: "Sub 1"}
+	sub2 := domain.Subscription{ID: "sub-2", DisplayName: "Sub 2"}
+	sub3 := domain.Subscription{ID: "sub-3", DisplayName: "Sub 3"}
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs:     []domain.Subscription{sub1, sub2, sub3},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Move sub-2 up -> should swap sub-1 and sub-2
+	err := service.MoveSubscription(context.Background(), "sub-2", "up")
+	if err != nil {
+		t.Fatalf("move sub-2 up: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-2" || store.subs[1].ID != "sub-1" || store.subs[2].ID != "sub-3" {
+		t.Fatalf("unexpected order after move up: %+v", store.subs)
+	}
+
+	// Move sub-2 down -> should swap sub-2 and sub-1
+	err = service.MoveSubscription(context.Background(), "sub-2", "down")
+	if err != nil {
+		t.Fatalf("move sub-2 down: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-1" || store.subs[1].ID != "sub-2" || store.subs[2].ID != "sub-3" {
+		t.Fatalf("unexpected order after move down: %+v", store.subs)
+	}
+
+	// Move sub-1 up (at boundary, should do nothing)
+	err = service.MoveSubscription(context.Background(), "sub-1", "up")
+	if err != nil {
+		t.Fatalf("move sub-1 up at boundary: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-1" {
+		t.Fatalf("unexpected order after boundary move: %+v", store.subs)
+	}
+}
+
 type memoryStore struct {
 	subs     []domain.Subscription
 	settings domain.Settings

@@ -407,13 +407,53 @@ function normalizeCommandError(value, fallback) {
 		return fallback || _('RouteFlux command failed.');
 
 	lines = text.split(/\r?\n/);
+
+	// 1. Look for a line starting with "Error:" (typically printed by Cobra on command failure)
 	for (i = 0; i < lines.length; i++) {
-		lines[i] = trim(lines[i]);
-		if (lines[i] === '' || lines[i].indexOf('Usage:') === 0 || lines[i].indexOf('Flags:') === 0 || lines[i].indexOf('Global Flags:') === 0)
+		var line = trim(lines[i]);
+		if (line.toLowerCase().indexOf('error:') === 0) {
+			return line;
+		}
+	}
+
+	// 2. Look for any non-log, non-help line
+	for (i = 0; i < lines.length; i++) {
+		var line = trim(lines[i]);
+		if (line === '')
 			continue;
-		if (lines[i].indexOf('-h, --help') >= 0)
+		if (line.indexOf('Usage:') === 0 || line.indexOf('Flags:') === 0 || line.indexOf('Global Flags:') === 0)
 			continue;
-		return lines[i];
+		if (line.indexOf('-h, --help') >= 0)
+			continue;
+		if (line.indexOf('time=') === 0)
+			continue;
+		return line;
+	}
+
+	// 3. Fallback: if we only have structured log lines, look for the last level=ERROR or level=WARN line
+	for (i = lines.length - 1; i >= 0; i--) {
+		var line = trim(lines[i]);
+		if (line === '')
+			continue;
+		if (line.indexOf('level=ERROR') >= 0 || line.indexOf('level=WARN') >= 0) {
+			var msgMatch = line.match(/msg="([^"]+)"/) || line.match(/msg=([^ ]+)/);
+			if (msgMatch) {
+				return _('Error: %s').format(msgMatch[1]);
+			}
+			return line;
+		}
+	}
+
+	// 4. Ultimate fallback: first non-empty, non-usage line
+	for (i = 0; i < lines.length; i++) {
+		var line = trim(lines[i]);
+		if (line === '')
+			continue;
+		if (line.indexOf('Usage:') === 0 || line.indexOf('Flags:') === 0 || line.indexOf('Global Flags:') === 0)
+			continue;
+		if (line.indexOf('-h, --help') >= 0)
+			continue;
+		return line;
 	}
 
 	return fallback || _('RouteFlux command failed.');
@@ -1091,6 +1131,21 @@ return view.extend({
 		);
 	},
 
+	handleMoveSubscription: function(subscriptionId, direction, ev) {
+		if (ev && typeof ev.preventDefault === 'function')
+			ev.preventDefault();
+
+		return this.runCLIAction(
+			this.subscriptionActionKey(subscriptionId),
+			[ 'move', subscriptionId, direction ],
+			direction === 'up' ? _('Subscription moved up.') : _('Subscription moved down.'),
+			direction === 'up' ? _('Moving subscription up...') : _('Moving subscription down...'),
+			{
+				'loadingMessage': _('Reloading subscriptions...')
+			}
+		);
+	},
+
 	handleRemoveSubscriptionNode: function(subscriptionId, nodeId, nodeName, ev) {
 		if (ev && typeof ev.preventDefault === 'function')
 			ev.preventDefault();
@@ -1680,6 +1735,20 @@ return view.extend({
 			});
 		}
 
+		var isFirst = false;
+		var isLast = false;
+		if (!subscription.is_virtual && this.pageData && Array.isArray(this.pageData[1])) {
+			var realSubs = this.pageData[1].filter(function(s) {
+				var isSingleton = s.source_type === 'raw' && Array.isArray(s.nodes) && s.nodes.length === 1;
+				return s.id !== 'server-list' && !isSingleton;
+			});
+			var subIdx = realSubs.findIndex(function(s) { return s.id === subscription.id; });
+			if (subIdx >= 0) {
+				isFirst = (subIdx === 0);
+				isLast = (subIdx === realSubs.length - 1);
+			}
+		}
+
 		var subscriptionBusy = this.isSubscriptionBusy(subscription.id);
 		var busyMessage = this.subscriptionBusyMessage(subscription.id);
 		var pingBusy = this.isSubscriptionPingBusy(subscription.id);
@@ -1726,6 +1795,20 @@ return view.extend({
 		if (!subscription.is_virtual) {
 			controls = [
 				E('div', { 'class': 'routeflux-subscription-actions' }, [
+					E('button', {
+						'class': 'cbi-button cbi-button-action',
+						'type': 'button',
+						'title': _('Move Up'),
+						'click': ui.createHandlerFn(this, 'handleMoveSubscription', subscription.id, 'up'),
+						'disabled': (subscriptionBusy || isFirst) ? 'disabled' : null
+					}, [ '▲' ]),
+					E('button', {
+						'class': 'cbi-button cbi-button-action',
+						'type': 'button',
+						'title': _('Move Down'),
+						'click': ui.createHandlerFn(this, 'handleMoveSubscription', subscription.id, 'down'),
+						'disabled': (subscriptionBusy || isLast) ? 'disabled' : null
+					}, [ '▼' ]),
 					E('button', {
 						'class': 'cbi-button cbi-button-action',
 						'type': 'button',
@@ -2037,7 +2120,7 @@ return view.extend({
 						E('textarea', {
 							'id': 'routeflux-add-source',
 							'class': 'cbi-input-textarea',
-							'placeholder': _('Paste an http(s) subscription URL, VLESS/VMess/Trojan/SS links, base64 payload, or Xray/3x-ui JSON.'),
+							'placeholder': _('Paste an http(s) subscription URL, VLESS/VMess/Trojan/SS/Socks5/Hysteria links, base64 payload, or Xray/3x-ui JSON.'),
 							'input': L.bind(function(ev) {
 								this.handleDraftInput('source', ev);
 							}, this)
@@ -2045,12 +2128,12 @@ return view.extend({
 					]),
 					E('div', { 'class': 'routeflux-add-format-list' }, [
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('http(s) URL') ]),
-						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('VLESS / VMess / Trojan / SS') ]),
+						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('VLESS / VMess / Trojan / SS / Socks5 / Hysteria') ]),
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('base64 payload') ]),
 						E('span', { 'class': 'routeflux-add-format-badge' }, [ _('Xray / 3x-ui JSON') ])
 					]),
 					E('p', { 'class': 'routeflux-add-hint' }, [
-						_('Accepted input: an http(s) subscription URL; one or more VLESS, VMess, Trojan, or Shadowsocks links; a base64-encoded subscription payload; or an Xray/3x-ui JSON object or array with outbounds, protocol, config, or link.')
+						_('Accepted input: an http(s) subscription URL; one or more VLESS, VMess, Trojan, Shadowsocks, SOCKS5, or Hysteria links; a base64-encoded subscription payload; or an Xray/3x-ui JSON object or array with outbounds, protocol, config, or link.')
 					])
 				])
 			]),

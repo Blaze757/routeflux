@@ -19,7 +19,9 @@ func normalizeNode(node domain.Node, provider string) (domain.Node, error) {
 		node.Remark = node.Name
 	}
 	node.Name = node.Remark
-	if node.Transport == "" {
+	if node.Protocol == domain.ProtocolHysteria || node.Protocol == domain.ProtocolHysteria2 {
+		node.Transport = "udp"
+	} else if node.Transport == "" {
 		node.Transport = "tcp"
 	}
 	if node.Extras == nil {
@@ -37,6 +39,10 @@ func normalizeNode(node domain.Node, provider string) (domain.Node, error) {
 		}
 	case domain.ProtocolSocks:
 		// SOCKS allows optional credentials, so no strict UUID/Password validation
+	case domain.ProtocolHysteria, domain.ProtocolHysteria2:
+		if node.Password == "" {
+			return domain.Node{}, fmt.Errorf("%s node missing password", node.Protocol)
+		}
 	default:
 		return domain.Node{}, fmt.Errorf("unsupported protocol %q", node.Protocol)
 	}

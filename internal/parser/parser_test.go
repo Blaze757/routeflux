@@ -100,6 +100,69 @@ func TestParseSocksLink(t *testing.T) {
 	}
 }
 
+func TestParseHysteriaLink(t *testing.T) {
+	t.Parallel()
+
+	input := "hysteria://auth_token@hy.example.com:443?insecure=1&peer=sni.example.com#Hysteria-Node"
+	nodes, err := parser.ParseNodes(input, "Example Provider")
+	if err != nil {
+		t.Fatalf("parse nodes: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	got := nodes[0]
+	if got.Protocol != "hysteria" {
+		t.Fatalf("expected hysteria protocol, got %+v", got)
+	}
+	if got.Address != "hy.example.com" || got.Port != 443 {
+		t.Fatalf("unexpected endpoint: %+v", got)
+	}
+	if got.Password != "auth_token" || got.UUID != "auth_token" {
+		t.Fatalf("unexpected credentials: %+v", got)
+	}
+	if got.ServerName != "sni.example.com" {
+		t.Fatalf("unexpected SNI: %+v", got)
+	}
+	if got.Name != "Hysteria-Node" || got.Remark != "Hysteria-Node" {
+		t.Fatalf("unexpected label: %+v", got)
+	}
+}
+
+func TestParseHysteria2Link(t *testing.T) {
+	t.Parallel()
+
+	input := "hy2://password_token@hy2.example.com:8443?insecure=1&sni=sni.example.com&obfs=salamander&obfs-password=obfspass#Hysteria2-Node"
+	nodes, err := parser.ParseNodes(input, "Example Provider")
+	if err != nil {
+		t.Fatalf("parse nodes: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	got := nodes[0]
+	if got.Protocol != "hysteria2" {
+		t.Fatalf("expected hysteria2 protocol, got %+v", got)
+	}
+	if got.Address != "hy2.example.com" || got.Port != 8443 {
+		t.Fatalf("unexpected endpoint: %+v", got)
+	}
+	if got.Password != "password_token" || got.UUID != "password_token" {
+		t.Fatalf("unexpected credentials: %+v", got)
+	}
+	if got.ServerName != "sni.example.com" {
+		t.Fatalf("unexpected SNI: %+v", got)
+	}
+	if got.Extras["obfs"] != "salamander" || got.Extras["obfs-password"] != "obfspass" {
+		t.Fatalf("unexpected obfs settings: %+v", got)
+	}
+	if got.Name != "Hysteria2-Node" || got.Remark != "Hysteria2-Node" {
+		t.Fatalf("unexpected label: %+v", got)
+	}
+}
+
 func TestParseXrayJSONConfig(t *testing.T) {
 	t.Parallel()
 
@@ -523,6 +586,69 @@ func TestParseJSONArrayOfXrayConfigs(t *testing.T) {
 	}
 }
 
+func TestParseHysteriaJSONConfig(t *testing.T) {
+	t.Parallel()
+
+	input := `{
+		"remarks": "Liberty VPN 🗽",
+		"outbounds": [
+			{
+				"protocol": "hysteria",
+				"settings": {
+					"address": "helsinki02.fi-m247-02.com",
+					"port": 8449,
+					"version": 2
+				},
+				"streamSettings": {
+					"hysteriaSettings": {
+						"auth": "9aa63cc6-8cfc-4367-a665-d5841d680e85",
+						"version": 2
+					},
+					"network": "hysteria",
+					"security": "tls",
+					"tlsSettings": {
+						"allowInsecure": false,
+						"alpn": ["h3"],
+						"serverName": "sni.fi-m247-02.com",
+						"show": false,
+						"fingerprint": "firefox"
+					}
+				},
+				"tag": "proxy"
+			}
+		]
+	}`
+
+	nodes, err := parser.ParseNodes(input, "Liberty")
+	if err != nil {
+		t.Fatalf("parse hysteria json config: %v", err)
+	}
+
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	node := nodes[0]
+	if node.Protocol != "hysteria2" {
+		t.Fatalf("expected protocol hysteria2, got %q", node.Protocol)
+	}
+	if node.Address != "helsinki02.fi-m247-02.com" {
+		t.Fatalf("expected address helsinki02.fi-m247-02.com, got %q", node.Address)
+	}
+	if node.Port != 8449 {
+		t.Fatalf("expected port 8449, got %d", node.Port)
+	}
+	if node.UUID != "9aa63cc6-8cfc-4367-a665-d5841d680e85" {
+		t.Fatalf("expected UUID/auth 9aa63cc6-8cfc-4367-a665-d5841d680e85, got %q", node.UUID)
+	}
+	if node.ServerName != "sni.fi-m247-02.com" {
+		t.Fatalf("expected serverName sni.fi-m247-02.com, got %q", node.ServerName)
+	}
+	if len(node.ALPN) != 1 || node.ALPN[0] != "h3" {
+		t.Fatalf("expected ALPN [h3], got %+v", node.ALPN)
+	}
+}
+
 func TestParseInvalidInput(t *testing.T) {
 	t.Parallel()
 
@@ -554,6 +680,13 @@ func assertGoldenNodes(t *testing.T, nodes any, fixtureDir, golden string) {
 	got, err := normalizeJSONString(string(rawGot))
 	if err != nil {
 		t.Fatalf("normalize generated nodes: %v", err)
+	}
+
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		path := filepath.Join("..", "..", "test", "fixtures", fixtureDir, golden)
+		if err := os.WriteFile(path, []byte(got+"\n"), 0644); err != nil {
+			t.Fatalf("update golden: %v", err)
+		}
 	}
 
 	want, err := normalizeJSONString(mustReadFixture(t, fixtureDir, golden))

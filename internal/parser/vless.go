@@ -35,6 +35,7 @@ func ParseVLESS(raw, provider string) (domain.Node, error) {
 		Fingerprint: query.Get("fp"),
 		PublicKey:   firstNonEmpty(query.Get("pbk"), query.Get("publicKey")),
 		ShortID:     firstNonEmpty(query.Get("sid"), query.Get("shortId")),
+		SpiderX:     firstNonEmpty(query.Get("spx"), query.Get("spiderX")),
 		Flow:        query.Get("flow"),
 		Transport:   firstNonEmpty(query.Get("type"), query.Get("network")),
 		Path:        query.Get("path"),

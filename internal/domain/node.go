@@ -22,6 +22,10 @@ const (
 	ProtocolShadowsocks Protocol = "shadowsocks"
 	// ProtocolSocks represents a SOCKS node.
 	ProtocolSocks Protocol = "socks"
+	// ProtocolHysteria represents a Hysteria v1 node.
+	ProtocolHysteria Protocol = "hysteria"
+	// ProtocolHysteria2 represents a Hysteria v2 node.
+	ProtocolHysteria2 Protocol = "hysteria2"
 )
 
 // Node is the normalized representation of a provider endpoint.
@@ -42,6 +46,7 @@ type Node struct {
 	Fingerprint    string            `json:"fingerprint"`
 	PublicKey      string            `json:"public_key"`
 	ShortID        string            `json:"short_id"`
+	SpiderX        string            `json:"spider_x"`
 	Flow           string            `json:"flow"`
 	Transport      string            `json:"transport"`
 	Path           string            `json:"path"`

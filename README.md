@@ -12,7 +12,7 @@ It helps you import proxy subscriptions, pick the right node, apply router traff
 
 RouteFlux is built for people who want a practical proxy workflow on OpenWrt:
 
-- Import a subscription URL, raw `vless://`, `vmess://`, or `trojan://` link, or a valid 3x-ui/Xray JSON config.
+- Import a subscription URL, raw `vless://`, `vmess://`, `trojan://`, `socks5://`, `hysteria://`, or `hy2://` link, or a valid 3x-ui/Xray JSON config.
 - Connect manually to a specific node or let RouteFlux pick the best node automatically.
 - Manage everything from the CLI, LuCI web UI, or the local TUI.
 - Keep router routing and DNS settings readable instead of burying them inside generated Xray config.
@@ -22,7 +22,7 @@ The current runtime target is OpenWrt and compatible forks such as ImmortalWrt. 
 ## Features
 
 - Fast import flow for subscriptions, share links, and supported 3x-ui/Xray JSON files.
-- Support for VLESS, VMess, Trojan, and Socks5 proxy nodes.
+- Support for VLESS, VMess, Trojan, Socks5, Hysteria, and Hysteria 2 proxy nodes.
 - Safe runtime updates with `xray -test`, last-known-good backup, and controlled service reloads.
 - Auto mode with health checks, live failover, anti-flap logic, and reboot-time runtime restore.
 - Dedicated Server List view for optimized management of subscriptions and single servers.
@@ -230,6 +230,9 @@ routeflux firewall explain
 
 ```bash
 routeflux refresh --all
+routeflux move sub-1234567890 up
+routeflux restart
+routeflux remove sub-1234567890
 routeflux diagnostics
 routeflux logs
 routeflux settings get

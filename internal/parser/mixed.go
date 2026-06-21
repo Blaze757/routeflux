@@ -68,6 +68,10 @@ func parseSingleNode(line, provider string) (domain.Node, error) {
 		return ParseShadowsocks(line, provider)
 	case strings.HasPrefix(strings.ToLower(line), "socks://"):
 		return ParseSocks(line, provider)
+	case strings.HasPrefix(strings.ToLower(line), "hysteria://"):
+		return ParseHysteria(line, provider)
+	case strings.HasPrefix(strings.ToLower(line), "hysteria2://"), strings.HasPrefix(strings.ToLower(line), "hy2://"):
+		return ParseHysteria2(line, provider)
 	default:
 		return domain.Node{}, fmt.Errorf("unsupported subscription entry")
 	}
