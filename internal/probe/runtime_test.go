@@ -221,6 +221,21 @@ func TestShouldSwitchRejectsUnhealthyCandidate(t *testing.T) {
 	}
 }
 
+func TestTCPCheckerHysteriaFallback(t *testing.T) {
+	t.Parallel()
+
+	checker := probe.TCPChecker{Timeout: time.Second}
+	result := checker.Check(context.Background(), domain.Node{
+		ID:       "node-hy2",
+		Address:  "127.0.0.1",
+		Protocol: domain.ProtocolHysteria2,
+	})
+
+	if !result.Healthy {
+		t.Fatalf("expected healthy result from command-not-found fallback or successful local ping, got: %+v", result)
+	}
+}
+
 func BenchmarkCalculateScore(b *testing.B) {
 	health := domain.NodeHealth{
 		NodeID:               "node-1",

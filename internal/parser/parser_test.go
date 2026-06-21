@@ -586,6 +586,69 @@ func TestParseJSONArrayOfXrayConfigs(t *testing.T) {
 	}
 }
 
+func TestParseHysteriaJSONConfig(t *testing.T) {
+	t.Parallel()
+
+	input := `{
+		"remarks": "Liberty VPN 🗽",
+		"outbounds": [
+			{
+				"protocol": "hysteria",
+				"settings": {
+					"address": "helsinki02.fi-m247-02.com",
+					"port": 8449,
+					"version": 2
+				},
+				"streamSettings": {
+					"hysteriaSettings": {
+						"auth": "9aa63cc6-8cfc-4367-a665-d5841d680e85",
+						"version": 2
+					},
+					"network": "hysteria",
+					"security": "tls",
+					"tlsSettings": {
+						"allowInsecure": false,
+						"alpn": ["h3"],
+						"serverName": "sni.fi-m247-02.com",
+						"show": false,
+						"fingerprint": "firefox"
+					}
+				},
+				"tag": "proxy"
+			}
+		]
+	}`
+
+	nodes, err := parser.ParseNodes(input, "Liberty")
+	if err != nil {
+		t.Fatalf("parse hysteria json config: %v", err)
+	}
+
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+
+	node := nodes[0]
+	if node.Protocol != "hysteria2" {
+		t.Fatalf("expected protocol hysteria2, got %q", node.Protocol)
+	}
+	if node.Address != "helsinki02.fi-m247-02.com" {
+		t.Fatalf("expected address helsinki02.fi-m247-02.com, got %q", node.Address)
+	}
+	if node.Port != 8449 {
+		t.Fatalf("expected port 8449, got %d", node.Port)
+	}
+	if node.UUID != "9aa63cc6-8cfc-4367-a665-d5841d680e85" {
+		t.Fatalf("expected UUID/auth 9aa63cc6-8cfc-4367-a665-d5841d680e85, got %q", node.UUID)
+	}
+	if node.ServerName != "sni.fi-m247-02.com" {
+		t.Fatalf("expected serverName sni.fi-m247-02.com, got %q", node.ServerName)
+	}
+	if len(node.ALPN) != 1 || node.ALPN[0] != "h3" {
+		t.Fatalf("expected ALPN [h3], got %+v", node.ALPN)
+	}
+}
+
 func TestParseInvalidInput(t *testing.T) {
 	t.Parallel()
 
@@ -617,6 +680,13 @@ func assertGoldenNodes(t *testing.T, nodes any, fixtureDir, golden string) {
 	got, err := normalizeJSONString(string(rawGot))
 	if err != nil {
 		t.Fatalf("normalize generated nodes: %v", err)
+	}
+
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		path := filepath.Join("..", "..", "test", "fixtures", fixtureDir, golden)
+		if err := os.WriteFile(path, []byte(got+"\n"), 0644); err != nil {
+			t.Fatalf("update golden: %v", err)
+		}
 	}
 
 	want, err := normalizeJSONString(mustReadFixture(t, fixtureDir, golden))

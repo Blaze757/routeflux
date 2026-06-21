@@ -36,7 +36,36 @@ func TestFirewallManagerValidateRejectsDNSMasqWithoutNFTSet(t *testing.T) {
 	}
 }
 
-func TestFirewallManagerValidateAllowsBypassTargetsWithoutDNSMasqNFTSet(t *testing.T) {
+func TestFirewallManagerValidateRejectsBypassTargetsWithoutDNSMasqNFTSet(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	dnsmasqPath := writeExecutable(t, filepath.Join(dir, "dnsmasq"), "#!/bin/sh\nif [ \"$1\" = \"--test\" ]; then\n  echo 'dnsmasq: recompile with HAVE_NFTSET defined to enable nftset directives' >&2\n  exit 1\nfi\necho '--nftset supported but disabled'\n")
+
+	manager := FirewallManager{
+		DNSMasqPath:        dnsmasqPath,
+		DNSMasqSnippetPath: filepath.Join(dir, "routeflux.conf"),
+	}
+
+	err := manager.Validate(context.Background(), domain.FirewallSettings{
+		Enabled: true,
+		Mode:    domain.FirewallModeSplit,
+		Split: domain.FirewallSplitSettings{
+			Bypass: domain.FirewallSelectorSet{
+				Services: []string{"youtube"},
+			},
+			DefaultAction: domain.FirewallDefaultActionProxy,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected bypass target validation to fail")
+	}
+	if !strings.Contains(err.Error(), "dnsmasq-full") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestFirewallManagerValidateAllowsCIDRBypassTargetsWithoutDNSMasqNFTSet(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -52,12 +81,12 @@ func TestFirewallManagerValidateAllowsBypassTargetsWithoutDNSMasqNFTSet(t *testi
 		Mode:    domain.FirewallModeSplit,
 		Split: domain.FirewallSplitSettings{
 			Bypass: domain.FirewallSelectorSet{
-				Services: []string{"youtube"},
+				CIDRs: []string{"1.1.1.1"},
 			},
 			DefaultAction: domain.FirewallDefaultActionProxy,
 		},
 	}); err != nil {
-		t.Fatalf("expected bypass target validation to skip dnsmasq check, got %v", err)
+		t.Fatalf("expected CIDR bypass target validation to skip dnsmasq check, got %v", err)
 	}
 }
 

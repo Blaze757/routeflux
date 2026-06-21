@@ -230,6 +230,9 @@ routeflux firewall explain
 
 ```bash
 routeflux refresh --all
+routeflux move sub-1234567890 up
+routeflux restart
+routeflux remove sub-1234567890
 routeflux diagnostics
 routeflux logs
 routeflux settings get

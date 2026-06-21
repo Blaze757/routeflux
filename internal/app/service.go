@@ -335,6 +335,41 @@ func (s *Service) RemoveSubscription(ctx context.Context, id string) error {
 	})
 }
 
+// MoveSubscription moves a subscription up or down in the list.
+func (s *Service) MoveSubscription(ctx context.Context, id string, direction string) error {
+	return runStoreWriteLocked(s, func() error {
+		subs, err := s.store.LoadSubscriptions()
+		if err != nil {
+			return err
+		}
+
+		index := slices.IndexFunc(subs, func(sub domain.Subscription) bool { return sub.ID == id })
+		if index < 0 {
+			return fmt.Errorf("subscription %q not found", id)
+		}
+
+		newIndex := index
+		if direction == "up" {
+			newIndex = index - 1
+		} else if direction == "down" {
+			newIndex = index + 1
+		} else {
+			return fmt.Errorf("invalid direction %q, must be 'up' or 'down'", direction)
+		}
+
+		if newIndex < 0 || newIndex >= len(subs) {
+			return nil
+		}
+
+		subs[index], subs[newIndex] = subs[newIndex], subs[index]
+
+		if err := s.store.SaveSubscriptions(subs); err != nil {
+			return fmt.Errorf("save subscriptions: %w", err)
+		}
+		return nil
+	})
+}
+
 // RemoveSubscriptionNode removes a specific node from a subscription.
 func (s *Service) RemoveSubscriptionNode(ctx context.Context, subID, nodeID string) error {
 	return runStoreWriteLocked(s, func() error {

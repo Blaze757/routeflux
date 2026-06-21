@@ -187,6 +187,28 @@ return view.extend({
 		return false;
 	},
 
+	handleRestart: function(ev) {
+		if (ev)
+			ev.preventDefault();
+
+		if (!window.confirm(_('Restart the RouteFlux service and clear all LuCI caches? This can help resolve temporary connection or display issues.')))
+			return Promise.resolve();
+
+		ui.showIndicator();
+
+		return fs.exec(routefluxBinary, [ 'restart' ]).then(L.bind(function(res) {
+			ui.hideIndicator();
+			ui.addNotification(null, notificationParagraph(_('RouteFlux service restarted and LuCI cache cleared successfully. Reloading...')), 'info');
+			window.setTimeout(function() {
+				window.location.reload();
+			}, 2000);
+		}, this)).catch(L.bind(function(err) {
+			ui.hideIndicator();
+			ui.addNotification(null, notificationParagraph(err.message || String(err)));
+			throw err;
+		}, this));
+	},
+
 	render: function(data) {
 		var info = data[0] || {};
 		var content = [];
@@ -264,6 +286,16 @@ return view.extend({
 		content.push(E('div', { 'class': 'cbi-section' }, [
 			E('h3', {}, [ _('Maintenance') ]),
 			E('p', { 'class': 'cbi-section-descr' }, [
+				_('Restart the RouteFlux service and clear LuCI caches. This is useful for troubleshooting or resolving display glitches.')
+			]),
+			E('div', { 'class': 'cbi-page-actions' }, [
+				E('button', {
+					'class': 'cbi-button cbi-button-action',
+					'type': 'button',
+					'click': ui.createHandlerFn(this, 'handleRestart')
+				}, [ _('Restart RouteFlux') ])
+			]),
+			E('p', { 'class': 'cbi-section-descr', 'style': 'margin-top:20px;' }, [
 				_('About intentionally keeps destructive maintenance actions out of LuCI. For full removal over SSH, use the documented uninstall.sh command from README.')
 			])
 		]));

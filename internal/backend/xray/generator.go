@@ -590,12 +590,16 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 			stream["tlsSettings"] = tls
 		}
 	case "reality":
-		stream["realitySettings"] = map[string]any{
+		realitySettings := map[string]any{
 			"fingerprint": node.Fingerprint,
 			"publicKey":   node.PublicKey,
 			"serverName":  node.ServerName,
 			"shortId":     node.ShortID,
 		}
+		if node.SpiderX != "" {
+			realitySettings["spiderX"] = node.SpiderX
+		}
+		stream["realitySettings"] = realitySettings
 	}
 
 	switch node.Transport {
