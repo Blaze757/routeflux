@@ -1,9 +1,10 @@
-﻿name: Dev Build
+name: Dev Build
 
 on:
   push:
     branches:
       - dev
+      - master
 
 permissions:
   contents: read
