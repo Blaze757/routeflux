@@ -32,7 +32,7 @@ func newSettingsCmd(opts *rootOptions) *cobra.Command {
 				}
 
 				text := fmt.Sprintf(
-					"refresh-interval=%s\nhealth-check-interval=%s\nswitch-cooldown=%s\nlatency-threshold=%s\nauto-mode=%t\nauto-excluded-nodes=%s\nmode=%s\nlog-level=%s\nfirewall-enabled=%t\nfirewall-mode=%s\nfirewall-port=%d\nfirewall-default-action=%s\nfirewall-targets=%s\nfirewall-target-services=%s\nfirewall-target-domains=%s\nfirewall-target-cidrs=%s\nfirewall-split-proxy=%s\nfirewall-split-bypass=%s\nfirewall-split-excluded-sources=%s\nfirewall-hosts=%s\nfirewall-block-quic=%t\nfirewall-disable-ipv6=%t\nzapret-enabled=%t\nzapret-selectors=%s\nzapret-domains=%s\nzapret-failback-success-threshold=%d",
+					"refresh-interval=%s\nhealth-check-interval=%s\nswitch-cooldown=%s\nlatency-threshold=%s\nauto-mode=%t\nauto-excluded-nodes=%s\nmode=%s\nlog-level=%s\nhwid=%s\nfirewall-enabled=%t\nfirewall-mode=%s\nfirewall-port=%d\nfirewall-default-action=%s\nfirewall-targets=%s\nfirewall-target-services=%s\nfirewall-target-domains=%s\nfirewall-target-cidrs=%s\nfirewall-split-proxy=%s\nfirewall-split-bypass=%s\nfirewall-split-excluded-sources=%s\nfirewall-hosts=%s\nfirewall-block-quic=%t\nfirewall-disable-ipv6=%t\nzapret-enabled=%t\nzapret-selectors=%s\nzapret-domains=%s\nzapret-failback-success-threshold=%d",
 					settings.RefreshInterval,
 					settings.HealthCheckInterval,
 					settings.SwitchCooldown,
@@ -41,6 +41,7 @@ func newSettingsCmd(opts *rootOptions) *cobra.Command {
 					strings.Join(settings.AutoExcludedNodes, ", "),
 					settings.Mode,
 					settings.LogLevel,
+					settings.HWID,
 					settings.Firewall.Enabled,
 					domain.NormalizeFirewallMode(settings.Firewall.Mode),
 					settings.Firewall.TransparentPort,

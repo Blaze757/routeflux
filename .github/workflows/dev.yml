@@ -1,0 +1,31 @@
+﻿name: Dev Build
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  build-openwrt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache: true
+
+      - name: Build for OpenWRT aarch64_cortex-a53
+        run: make build-openwrt-aarch64_cortex-a53
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeflux-openwrt-aarch64_cortex-a53
+          path: bin/openwrt/aarch64_cortex-a53/

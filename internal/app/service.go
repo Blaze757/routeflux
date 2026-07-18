@@ -2353,6 +2353,9 @@ func (s *Service) fetchSubscriptionOnceWithClient(ctx context.Context, rawURL st
 	req.Header.Set("Accept", "text/plain, application/json;q=0.9, */*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("User-Agent", subscriptionFetchUserAgent)
+	if s.hwID() != "" {
+		req.Header.Set("x-hwid", s.hwID())
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -2400,6 +2403,9 @@ func (s *Service) fetchSubscriptionMetadata(ctx context.Context, rawURL, userAge
 	}
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", userAgent)
+	if s.hwID() != "" {
+		req.Header.Set("x-hwid", s.hwID())
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -4219,4 +4225,12 @@ func (s *Service) logWarn(msg string, args ...any) {
 	if s.logger != nil {
 		s.logger.Warn(msg, args...)
 	}
+}
+
+func (s *Service) hwID() string {
+	settings, err := s.store.LoadSettings()
+	if err != nil {
+		return ""
+	}
+	return settings.HWID
 }

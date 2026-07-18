@@ -79,6 +79,7 @@ type Settings struct {
 	AutoMode            bool             `json:"auto_mode"`
 	Mode                SelectionMode    `json:"mode"`
 	LogLevel            string           `json:"log_level"`
+	HWID                string           `json:"hwid"`
 }
 
 // DNSMode controls how RouteFlux manages runtime DNS behavior.
