@@ -613,14 +613,10 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 			"serviceName": node.Path,
 		}
 	case "xhttp":
-		xhttpSettings := map[string]any{
+		stream["xhttpSettings"] = map[string]any{
 			"path": node.Path,
 			"host": node.Host,
 		}
-		if node.XHTTPMode != "" {
-			xhttpSettings["mode"] = node.XHTTPMode
-		}
-		stream["xhttpSettings"] = xhttpSettings
 	}
 
 	switch node.Protocol {

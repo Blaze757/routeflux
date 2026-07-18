@@ -51,7 +51,6 @@ type Node struct {
 	Transport      string            `json:"transport"`
 	Path           string            `json:"path"`
 	Host           string            `json:"host"`
-	XHTTPMode      string            `json:"xhttp_mode"`
 	Remark         string            `json:"remark"`
 	RawQuery       string            `json:"raw_query"`
 	Extras         map[string]string `json:"extras"`
