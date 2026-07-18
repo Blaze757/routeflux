@@ -43,7 +43,7 @@ func ParseNodes(input, provider string) ([]domain.Node, error) {
 
 		node, err := parseSingleNode(line, provider)
 		if err != nil {
-			return nil, fmt.Errorf("parse subscription line %q: %w", line, err)
+			continue
 		}
 
 		nodes = append(nodes, node)
