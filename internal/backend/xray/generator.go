@@ -617,9 +617,11 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 			"path": node.Path,
 			"host": node.Host,
 		}
-		if node.XHTTPMode != "" {
-			xhttpSettings["mode"] = node.XHTTPMode
+		xhttpMode := node.XHTTPMode
+		if xhttpMode == "" {
+			xhttpMode = "packet-up"
 		}
+		xhttpSettings["mode"] = xhttpMode
 		stream["xhttpSettings"] = xhttpSettings
 	}
 
