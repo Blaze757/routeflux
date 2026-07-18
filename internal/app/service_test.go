@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -3176,7 +3177,7 @@ func TestSetSettingHWID(t *testing.T) {
 		settings: domain.DefaultSettings(),
 		state:    domain.DefaultRuntimeState(),
 	}
-	service := NewService(Dependencies{Store: store})
+	service := NewService(Dependencies{Store: store, Logger: slog.Default()})
 
 	settings, err := service.SetSetting("hwid", "abc-123-def")
 	if err != nil {
@@ -3192,6 +3193,37 @@ func TestSetSettingHWID(t *testing.T) {
 	}
 	if settings.HWID != "trimmed" {
 		t.Fatalf("unexpected hwid after trim: got %q, want %q", settings.HWID, "trimmed")
+	}
+}
+
+func TestHWIDAutoGenerate(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store, Logger: slog.Default()})
+
+	hwID := service.hwID()
+	if hwID == "" {
+		t.Fatal("expected auto-generated hwid to be non-empty")
+	}
+	if len(hwID) != 36 || hwID[8] != '-' || hwID[13] != '-' || hwID[18] != '-' || hwID[23] != '-' {
+		t.Fatalf("unexpected hwid format: %q", hwID)
+	}
+
+	saved, err := store.LoadSettings()
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if saved.HWID != hwID {
+		t.Fatalf("hwid not persisted: got %q, want %q", saved.HWID, hwID)
+	}
+
+	hwID2 := service.hwID()
+	if hwID != hwID2 {
+		t.Fatalf("hwid should be stable: got %q then %q", hwID, hwID2)
 	}
 }
 
