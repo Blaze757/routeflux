@@ -3169,6 +3169,32 @@ func TestSetSettingRefreshIntervalUpdatesStoredSubscriptions(t *testing.T) {
 	}
 }
 
+func TestSetSettingHWID(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.SetSetting("hwid", "abc-123-def")
+	if err != nil {
+		t.Fatalf("set hwid: %v", err)
+	}
+	if settings.HWID != "abc-123-def" {
+		t.Fatalf("unexpected hwid: got %q, want %q", settings.HWID, "abc-123-def")
+	}
+
+	settings, err = service.SetSetting("hwid", "  trimmed  ")
+	if err != nil {
+		t.Fatalf("set hwid: %v", err)
+	}
+	if settings.HWID != "trimmed" {
+		t.Fatalf("unexpected hwid after trim: got %q, want %q", settings.HWID, "trimmed")
+	}
+}
+
 func TestSetSettingDNSFields(t *testing.T) {
 	t.Parallel()
 

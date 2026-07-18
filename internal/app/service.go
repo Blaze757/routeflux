@@ -2184,6 +2184,8 @@ func (s *Service) setSetting(key, value string) (domain.Settings, error) {
 	case "dns.direct-domains", "dns.domains":
 		settings.DNS.DirectDomains = parseStringList(value)
 		reapplyRuntime = true
+	case "hwid":
+		settings.HWID = strings.TrimSpace(value)
 	default:
 		return domain.Settings{}, fmt.Errorf("unsupported setting %q", key)
 	}
