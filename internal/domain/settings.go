@@ -67,21 +67,21 @@ const (
 
 // Settings stores user-configurable application behavior.
 type Settings struct {
-	SchemaVersion       int              `json:"schema_version"`
-	RefreshInterval     Duration         `json:"refresh_interval"`
-	HealthCheckInterval Duration         `json:"health_check_interval"`
-	SwitchCooldown      Duration         `json:"switch_cooldown"`
-	LatencyThreshold    Duration         `json:"latency_threshold"`
-	AutoExcludedNodes   []string         `json:"auto_excluded_nodes"`
-	DNS                 DNSSettings      `json:"dns"`
-	Firewall            FirewallSettings `json:"firewall"`
-	Zapret              ZapretSettings   `json:"zapret"`
-	Routing             RoutingSettings  `json:"routing"`
+	SchemaVersion       int               `json:"schema_version"`
+	RefreshInterval     Duration          `json:"refresh_interval"`
+	HealthCheckInterval Duration          `json:"health_check_interval"`
+	SwitchCooldown      Duration          `json:"switch_cooldown"`
+	LatencyThreshold    Duration          `json:"latency_threshold"`
+	AutoExcludedNodes   []string          `json:"auto_excluded_nodes"`
+	DNS                 DNSSettings       `json:"dns"`
+	Firewall            FirewallSettings  `json:"firewall"`
+	Zapret              ZapretSettings    `json:"zapret"`
+	Routing             RoutingSettings   `json:"routing"`
 	GeoUpdate           GeoUpdateSettings `json:"geo_update"`
-	AutoMode            bool             `json:"auto_mode"`
-	Mode                SelectionMode    `json:"mode"`
-	LogLevel            string           `json:"log_level"`
-	HWID                string           `json:"hwid"`
+	AutoMode            bool              `json:"auto_mode"`
+	Mode                SelectionMode     `json:"mode"`
+	LogLevel            string            `json:"log_level"`
+	HWID                string            `json:"hwid"`
 }
 
 // RoutingSettings controls Xray geosite/geoip-based routing rules.
@@ -253,7 +253,7 @@ func DefaultSettings() Settings {
 			ModeDrafts:           FirewallModeDrafts{},
 			BlockQUIC:            false,
 		},
-		Zapret:   DefaultZapretSettings(),
+		Zapret: DefaultZapretSettings(),
 		Routing: RoutingSettings{
 			DirectGeosite: []string{"category-ru"},
 			DirectGeoIP:   []string{"ru"},

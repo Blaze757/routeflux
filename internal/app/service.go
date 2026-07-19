@@ -16,9 +16,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"path/filepath"
-	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -30,8 +30,8 @@ import (
 	"github.com/Alaxay8/routeflux/internal/backend"
 	"github.com/Alaxay8/routeflux/internal/domain"
 	"github.com/Alaxay8/routeflux/internal/parser"
-	"github.com/Alaxay8/routeflux/internal/probe"
 	"github.com/Alaxay8/routeflux/internal/platform/openwrt"
+	"github.com/Alaxay8/routeflux/internal/probe"
 	"github.com/Alaxay8/routeflux/internal/speedtest"
 )
 

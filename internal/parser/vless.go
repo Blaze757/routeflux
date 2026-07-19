@@ -40,7 +40,7 @@ func ParseVLESS(raw, provider string) (domain.Node, error) {
 		Transport:   firstNonEmpty(query.Get("type"), query.Get("network")),
 		Path:        query.Get("path"),
 		Host:        query.Get("host"),
-		XHTTPMode:     query.Get("mode"),
+		XHTTPMode:   query.Get("mode"),
 		RawQuery:    parsed.RawQuery,
 		Extras: map[string]string{
 			"type": firstNonEmpty(query.Get("type"), query.Get("network")),
