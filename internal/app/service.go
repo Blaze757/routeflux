@@ -2198,17 +2198,17 @@ func (s *Service) setSetting(key, value string) (domain.Settings, error) {
 		settings.GeoUpdate.Enabled = strings.EqualFold(value, "true")
 	case "geo-update.interval":
 		td, err := domain.ParseDurationValue(value)
-	\tif err != nil {
+		if err != nil {
 			return domain.Settings{}, err
 		}
-		settings.GeoUpdate.Interval = d
+		settings.GeoUpdate.Interval = td
 	case "geo-update.url-geoip":
-	\tif settings.GeoUpdate.URLs == nil {
+		if settings.GeoUpdate.URLs == nil {
 			settings.GeoUpdate.URLs = make(map[string]string)
 		}
 		settings.GeoUpdate.URLs["geoip"] = strings.TrimSpace(value)
 	case "geo-update.url-geosite":
-	\tif settings.GeoUpdate.URLs == nil {
+		if settings.GeoUpdate.URLs == nil {
 			settings.GeoUpdate.URLs = make(map[string]string)
 		}
 		settings.GeoUpdate.URLs["geosite"] = strings.TrimSpace(value)
