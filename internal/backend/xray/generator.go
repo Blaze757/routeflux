@@ -103,8 +103,8 @@ func (Generator) Generate(req backend.ConfigRequest) ([]byte, error) {
 		)
 	}
 
-	cfg.Routing.Rules = append(cfg.Routing.Rules, transparentRoutingRules(req)...)
 	cfg.Routing.Rules = append(cfg.Routing.Rules, geoRoutingRules(req)...)
+	cfg.Routing.Rules = append(cfg.Routing.Rules, transparentRoutingRules(req)...)
 	cfg.Routing.Rules = append(cfg.Routing.Rules, xrayRouteRule{
 		Type:        "field",
 		OutboundTag: "selected",
