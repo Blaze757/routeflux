@@ -104,6 +104,7 @@ func (Generator) Generate(req backend.ConfigRequest) ([]byte, error) {
 	}
 
 	cfg.Routing.Rules = append(cfg.Routing.Rules, transparentRoutingRules(req)...)
+	cfg.Routing.Rules = append(cfg.Routing.Rules, geoRoutingRules(req)...)
 	cfg.Routing.Rules = append(cfg.Routing.Rules, xrayRouteRule{
 		Type:        "field",
 		OutboundTag: "selected",
@@ -789,4 +790,34 @@ func outboundForNode(node domain.Node) (xrayCommonOutbound, error) {
 	default:
 		return xrayCommonOutbound{}, fmt.Errorf("unsupported protocol %s", node.Protocol)
 	}
+}
+
+func geoRoutingRules(req backend.ConfigRequest) []xrayRouteRule {
+	var rules []xrayRouteRule
+
+	if len(req.DirectGeosite) > 0 {
+		domains := make([]string, 0, len(req.DirectGeosite))
+		for _, s := range req.DirectGeosite {
+			domains = append(domains, "geosite:"+s)
+		}
+		rules = append(rules, xrayRouteRule{
+			Type:        "field",
+			Domain:      domains,
+			OutboundTag: "direct",
+		})
+	}
+
+	if len(req.DirectGeoIP) > 0 {
+		ips := make([]string, 0, len(req.DirectGeoIP))
+		for _, s := range req.DirectGeoIP {
+			ips = append(ips, "geoip:"+s)
+		}
+		rules = append(rules, xrayRouteRule{
+			Type:        "field",
+			IP:          ips,
+			OutboundTag: "direct",
+		})
+	}
+
+	return rules
 }

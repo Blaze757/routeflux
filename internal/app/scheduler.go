@@ -1,4 +1,4 @@
-package app
+﻿package app
 
 import (
 	"context"
@@ -88,6 +88,10 @@ func (s *Scheduler) runHealthLoop(ctx context.Context) {
 }
 
 func (s *Scheduler) runOnce(ctx context.Context) {
+	if err := s.service.CheckGeoUpdate(ctx); err != nil {
+		s.logWarn("check geo update", "error", err.Error())
+	}
+
 	subscriptions, err := s.service.ListSubscriptions()
 	if err != nil {
 		s.logWarn("list subscriptions for scheduler", "error", err.Error())

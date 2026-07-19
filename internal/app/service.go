@@ -16,6 +16,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
+	"path/filepath"
 	"net/url"
 	"regexp"
 	"slices"
@@ -29,6 +31,7 @@ import (
 	"github.com/Alaxay8/routeflux/internal/domain"
 	"github.com/Alaxay8/routeflux/internal/parser"
 	"github.com/Alaxay8/routeflux/internal/probe"
+	"github.com/Alaxay8/routeflux/internal/platform/openwrt"
 	"github.com/Alaxay8/routeflux/internal/speedtest"
 )
 
@@ -2187,6 +2190,28 @@ func (s *Service) setSetting(key, value string) (domain.Settings, error) {
 		reapplyRuntime = true
 	case "hwid":
 		settings.HWID = strings.TrimSpace(value)
+	case "routing.direct-geosite":
+		settings.Routing.DirectGeosite = parseStringList(value)
+	case "routing.direct-geoip":
+		settings.Routing.DirectGeoIP = parseStringList(value)
+	case "geo-update.enabled":
+		settings.GeoUpdate.Enabled = strings.EqualFold(value, "true")
+	case "geo-update.interval":
+		td, err := domain.ParseDurationValue(value)
+	\tif err != nil {
+			return domain.Settings{}, err
+		}
+		settings.GeoUpdate.Interval = d
+	case "geo-update.url-geoip":
+	\tif settings.GeoUpdate.URLs == nil {
+			settings.GeoUpdate.URLs = make(map[string]string)
+		}
+		settings.GeoUpdate.URLs["geoip"] = strings.TrimSpace(value)
+	case "geo-update.url-geosite":
+	\tif settings.GeoUpdate.URLs == nil {
+			settings.GeoUpdate.URLs = make(map[string]string)
+		}
+		settings.GeoUpdate.URLs["geosite"] = strings.TrimSpace(value)
 	default:
 		return domain.Settings{}, fmt.Errorf("unsupported setting %q", key)
 	}
@@ -2875,6 +2900,8 @@ func (s *Service) backendConfigRequest(settings domain.Settings, node domain.Nod
 		TransparentSelectiveCapture: transparentSelectiveCapture(settings.Firewall),
 		TransparentBlockQUIC:        domain.EffectiveTransparentBlockQUIC(settings.Firewall, &node),
 		TransparentPort:             settings.Firewall.TransparentPort,
+		DirectGeosite:               settings.Routing.DirectGeosite,
+		DirectGeoIP:                 settings.Routing.DirectGeoIP,
 	}
 
 	switch domain.NormalizeFirewallMode(settings.Firewall.Mode) {
@@ -4259,4 +4286,85 @@ func generateHWID() (string, error) {
 	b[6] = (b[6] & 0x0f) | 0x40 // version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
+// UpdateGeoData downloads geosite.dat and geoip.dat from configured URLs.
+func (s *Service) UpdateGeoData(ctx context.Context) error {
+	settings, err := s.store.LoadSettings()
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
+	}
+	if !settings.GeoUpdate.Enabled {
+		return fmt.Errorf("geo update is disabled")
+	}
+	if len(settings.GeoUpdate.URLs) == 0 {
+		return fmt.Errorf("no geo update URLs configured")
+	}
+	for name, rawURL := range settings.GeoUpdate.URLs {
+		if err := s.downloadGeoFile(ctx, rawURL, name); err != nil {
+			s.logWarn("download geo data", "name", name, "error", err.Error())
+			continue
+		}
+		s.logInfo("updated geo data", "name", name)
+	}
+	return nil
+}
+
+func (s *Service) downloadGeoFile(ctx context.Context, rawURL, name string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("fetch %s: %w", rawURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("fetch %s: status %s", rawURL, resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 50<<20))
+	if err != nil {
+		return fmt.Errorf("read %s: %w", rawURL, err)
+	}
+	path := filepath.Join(s.geoDataDir(), name+".dat")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+func (s *Service) geoDataDir() string {
+	if dir := os.Getenv("ROUTEFLUX_GEO_DATA_DIR"); dir != "" {
+		return dir
+	}
+	if openwrt.IsOpenWrt() {
+		return "/etc/xray"
+	}
+	return ".routeflux/geo"
+}
+
+// CheckGeoUpdate checks if geo data needs updating and updates if so.
+func (s *Service) CheckGeoUpdate(ctx context.Context) error {
+	settings, err := s.store.LoadSettings()
+	if err != nil {
+		return err
+	}
+	if !settings.GeoUpdate.Enabled {
+		return nil
+	}
+	interval := settings.GeoUpdate.Interval.Duration()
+	if interval <= 0 {
+		interval = 24 * time.Hour
+	}
+
+	path := filepath.Join(s.geoDataDir(), "geosite.dat")
+	info, err := os.Stat(path)
+	if err != nil || time.Since(info.ModTime()) > interval {
+		return s.UpdateGeoData(ctx)
+	}
+	return nil
 }

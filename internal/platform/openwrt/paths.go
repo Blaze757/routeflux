@@ -39,6 +39,14 @@ func XrayConfigPath() string {
 	return filepath.Join(RootDir(), "xray-config.json")
 }
 
+// GeoDataDir returns the directory for geosite.dat and geoip.dat files.
+func GeoDataDir() string {
+	if IsOpenWrt() {
+		return "/etc/xray"
+	}
+	return filepath.Join(RootDir(), "geo")
+}
+
 // XrayServicePath returns the init.d control script path.
 func XrayServicePath() string {
 	if path := os.Getenv("ROUTEFLUX_XRAY_SERVICE"); path != "" {

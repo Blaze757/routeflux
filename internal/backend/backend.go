@@ -27,6 +27,8 @@ type ConfigRequest struct {
 	TransparentProxyCIDRs       []string
 	TransparentBypassDomains    []string
 	TransparentBypassCIDRs      []string
+	DirectGeosite               []string
+	DirectGeoIP                 []string
 }
 
 // RollbackSnapshot stores an opaque backend-specific runtime snapshot.

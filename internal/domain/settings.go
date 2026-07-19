@@ -1,4 +1,4 @@
-package domain
+﻿package domain
 
 import (
 	"encoding/json"
@@ -76,10 +76,25 @@ type Settings struct {
 	DNS                 DNSSettings      `json:"dns"`
 	Firewall            FirewallSettings `json:"firewall"`
 	Zapret              ZapretSettings   `json:"zapret"`
+	Routing             RoutingSettings  `json:"routing"`
+	GeoUpdate           GeoUpdateSettings `json:"geo_update"`
 	AutoMode            bool             `json:"auto_mode"`
 	Mode                SelectionMode    `json:"mode"`
 	LogLevel            string           `json:"log_level"`
 	HWID                string           `json:"hwid"`
+}
+
+// RoutingSettings controls Xray geosite/geoip-based routing rules.
+type RoutingSettings struct {
+	DirectGeosite []string `json:"direct_geosite"`
+	DirectGeoIP   []string `json:"direct_geoip"`
+}
+
+// GeoUpdateSettings controls automatic geo data file updates.
+type GeoUpdateSettings struct {
+	Enabled  bool              `json:"enabled"`
+	Interval Duration          `json:"interval"`
+	URLs     map[string]string `json:"urls"`
 }
 
 // DNSMode controls how RouteFlux manages runtime DNS behavior.
@@ -239,6 +254,18 @@ func DefaultSettings() Settings {
 			BlockQUIC:            false,
 		},
 		Zapret:   DefaultZapretSettings(),
+		Routing: RoutingSettings{
+			DirectGeosite: []string{"category-ru"},
+			DirectGeoIP:   []string{"ru"},
+		},
+		GeoUpdate: GeoUpdateSettings{
+			Enabled:  true,
+			Interval: NewDuration(24 * time.Hour),
+			URLs: map[string]string{
+				"geoip":   "https://sub.subvost.fun/geo/geoip.dat",
+				"geosite": "https://sub.subvost.fun/geo/geosite.dat",
+			},
+		},
 		AutoMode: false,
 		Mode:     SelectionModeManual,
 		LogLevel: "info",

@@ -458,3 +458,31 @@ func asStringSlice(t *testing.T, raw any) []string {
 	}
 	return out
 }
+
+func TestGeoRoutingRules(t *testing.T) {
+	t.Parallel()
+
+	req := backend.ConfigRequest{
+		Mode:           domain.SelectionModeManual,
+		Nodes:          []domain.Node{{ID: "n1", Protocol: domain.ProtocolVLESS, Address: "1.2.3.4", Port: 443, UUID: "u"}},
+		SelectedNodeID: "n1",
+		DirectGeosite:  []string{"category-ru"},
+		DirectGeoIP:    []string{"ru"},
+	}
+
+	rules := geoRoutingRules(req)
+	if len(rules) != 2 {
+		t.Fatalf("expected 2 geo rules, got %d", len(rules))
+	}
+	if rules[0].OutboundTag != "direct" || len(rules[0].Domain) != 1 || rules[0].Domain[0] != "geosite:category-ru" {
+		t.Fatalf("unexpected geosite rule: %+v", rules[0])
+	}
+	if rules[1].OutboundTag != "direct" || len(rules[1].IP) != 1 || rules[1].IP[0] != "geoip:ru" {
+		t.Fatalf("unexpected geoip rule: %+v", rules[1])
+	}
+
+	emptyRules := geoRoutingRules(backend.ConfigRequest{})
+	if len(emptyRules) != 0 {
+		t.Fatalf("expected 0 rules for empty request, got %d", len(emptyRules))
+	}
+}
