@@ -93,8 +93,8 @@ func decodeSettings(data []byte, path string) (domain.Settings, error) {
 		AutoMode            *bool                 `json:"auto_mode"`
 		Mode                *domain.SelectionMode `json:"mode"`
 		LogLevel            *string               `json:"log_level"`
-	HWID                *string               `json:"hwid"`
-}
+		HWID                *string               `json:"hwid"`
+	}
 
 	var raw rawSettings
 	if err := json.Unmarshal(data, &raw); err != nil {
