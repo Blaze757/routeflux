@@ -484,8 +484,7 @@ make test-integration
 
 ## Благодарности
 
-RouteFlux основан на [Alaxay8/routeflux](https://github.com/Alaxay8/routeflux) от [Alaxay8](https://github.com/Alaxay8). Этот форк добавляет поддержку аппаратного идентификатора, транспортный режим XHTTP, улучшенную geo-маршрутизацию и другие улучшения.
-
+RouteFlux основан на [Alaxay8/routeflux](https://github.com/Alaxay8/routeflux) от [Alaxay8](https://github.com/Alaxay8).
 ## Лицензия
 
 MIT
