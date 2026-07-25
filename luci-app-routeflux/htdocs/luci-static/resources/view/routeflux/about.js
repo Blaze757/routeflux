@@ -252,6 +252,9 @@ return view.extend({
 		content.push(E('p', { 'class': 'cbi-section-descr' }, [
 			_('RouteFlux build information, update actions, and recent user-facing changes.')
 		]));
+		content.push(E('p', { 'class': 'cbi-section-descr' }, [
+			_('Based on Alaxay8/routeflux. Maintained by Blaze757.')
+		]));
 
 		content.push(E('div', { 'class': 'routeflux-overview-grid' }, [
 			routefluxUI.renderSummaryCard(_('Version'), version),

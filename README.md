@@ -501,6 +501,10 @@ Additional project docs:
 - [docs/architecture.md](docs/architecture.md)
 - [docs/tui-flow.md](docs/tui-flow.md)
 
+## Acknowledgments
+
+RouteFlux is based on [Alaxay8/routeflux](https://github.com/Alaxay8/routeflux) by [Alaxay8](https://github.com/Alaxay8). This fork adds hardware ID support, XHTTP transport mode, improved geo routing, and other enhancements.
+
 ## License
 
 MIT

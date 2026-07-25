@@ -482,6 +482,10 @@ make test-integration
 - [docs/architecture.md](docs/architecture.md)
 - [docs/tui-flow.md](docs/tui-flow.md)
 
+## Благодарности
+
+RouteFlux основан на [Alaxay8/routeflux](https://github.com/Alaxay8/routeflux) от [Alaxay8](https://github.com/Alaxay8). Этот форк добавляет поддержку аппаратного идентификатора, транспортный режим XHTTP, улучшенную geo-маршрутизацию и другие улучшения.
+
 ## Лицензия
 
 MIT
