@@ -1,4 +1,4 @@
-﻿package openwrt
+package openwrt
 
 import (
 	"bufio"
@@ -23,22 +23,6 @@ func dnsmasqBinaryPath() string {
 	return defaultDNSMasqBinaryPath
 }
 
-var allowedDNSMasqBinaryPaths = []string{
-	"/usr/sbin/dnsmasq",
-	"/sbin/dnsmasq",
-}
-
-func validateDNSMasqBinaryPath(path string) error {
-	clean := filepath.Clean(path)
-	for _, a := range allowedDNSMasqBinaryPaths {
-		if clean == a {
-			return nil
-	}
-	}
-	return fmt.Errorf("dnsmasq binary path not in allowlist: %s", path)
-}
-
-
 func dnsmasqServicePath() string {
 	if path := os.Getenv("ROUTEFLUX_DNSMASQ_SERVICE"); path != "" {
 		return path
@@ -52,6 +36,9 @@ func dnsmasqSnippetOverridePath() string {
 
 func (m FirewallManager) ensureDNSMasqNFTSetSupport(ctx context.Context) error {
 	path := firstNonEmpty(m.DNSMasqPath, dnsmasqBinaryPath())
+	if err := ValidateDNSMasqPath(path); err != nil {
+		return err
+	}
 	supported, err := dnsmasqSupportsNFTSet(ctx, path)
 	if err != nil {
 		return fmt.Errorf("inspect dnsmasq features: %w", err)
@@ -199,7 +186,12 @@ func parseConfDirSpec(value string) string {
 		value = value[:idx]
 	}
 
-	return strings.TrimSpace(value)
+	value = strings.TrimSpace(value)
+	clean := filepath.Clean(value)
+	if !filepath.IsAbs(clean) || strings.Contains(clean, "..") {
+		return ""
+	}
+	return clean
 }
 
 func buildDNSMasqNFTSetConfig(proxyDomains []string, bypassDomains []string) string {
@@ -265,6 +257,9 @@ func (m FirewallManager) syncDNSMasqTargets(ctx context.Context, proxyDomains []
 
 func (m FirewallManager) reloadDNSMasq(ctx context.Context) error {
 	script := firstNonEmpty(m.DNSMasqServicePath, dnsmasqServicePath())
+	if err := ValidateDNSMasqServicePath(script); err != nil {
+		return err
+	}
 	if script == "" {
 		return nil
 	}

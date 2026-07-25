@@ -2184,6 +2184,9 @@ func (s *Service) setSetting(key, value string) (domain.Settings, error) {
 		reapplyRuntime = true
 	case "dns.bootstrap":
 		settings.DNS.Bootstrap = parseStringList(value)
+		if err := validateBootstrapServers(settings.DNS.Bootstrap); err != nil {
+			return domain.Settings{}, err
+		}
 		reapplyRuntime = true
 	case "dns.direct-domains", "dns.domains":
 		settings.DNS.DirectDomains = parseStringList(value)
@@ -2323,7 +2326,31 @@ func (s *Service) resolveSubscriptionSource(ctx context.Context, req AddSubscrip
 	}
 }
 
+func validateSubscriptionURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid subscription URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("only HTTPS subscription URLs are allowed, got %s", u.Scheme)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("subscription URL has no host")
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("subscription URL points to private/reserved IP: %s", host)
+		}
+	}
+	return nil
+}
+
 func (s *Service) fetchSubscription(ctx context.Context, rawURL string) (subscriptionFetchResult, error) {
+	if err := validateSubscriptionURL(rawURL); err != nil {
+		return subscriptionFetchResult{}, err
+	}
+
 	var lastErr error
 
 	for attempt := 1; attempt <= subscriptionFetchMaxAttempts; attempt++ {
@@ -2425,6 +2452,10 @@ func (s *Service) fetchSubscriptionOnceWithClient(ctx context.Context, rawURL st
 }
 
 func (s *Service) fetchSubscriptionMetadata(ctx context.Context, rawURL, userAgent string) (subscriptionFetchMetadata, error) {
+	if err := validateSubscriptionURL(rawURL); err != nil {
+		return subscriptionFetchMetadata{}, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return subscriptionFetchMetadata{}, fmt.Errorf("build metadata request: %w", err)
@@ -2967,6 +2998,36 @@ func dnsServerHost(server string) string {
 	return ""
 }
 
+var allowedBootstrapServers = map[string]bool{
+	"1.1.1.1": true, "1.0.0.1": true,
+	"8.8.8.8": true, "8.8.4.4": true,
+	"9.9.9.9": true, "149.112.112.112": true,
+	"208.67.222.222": true, "208.67.220.220": true,
+	"64.6.64.6": true, "64.6.65.6": true,
+}
+
+func validateBootstrapServers(servers []string) error {
+	for _, s := range servers {
+		host := s
+		if idx := strings.LastIndex(s, ":"); idx > 0 {
+			host = s[:idx]
+		}
+		host = strings.TrimPrefix(host, "https://")
+		host = strings.TrimPrefix(host, "http://")
+		if idx := strings.Index(host, "/"); idx > 0 {
+			host = host[:idx]
+		}
+		ip := net.ParseIP(host)
+		if ip == nil {
+			return fmt.Errorf("bootstrap server must be an IP address, got %s", host)
+		}
+		if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			return fmt.Errorf("bootstrap server must be a public IP, got %s", host)
+		}
+	}
+	return nil
+}
+
 func (s *Service) prepareRuntimeDNSSettings(ctx context.Context, settings domain.Settings) (domain.Settings, error) {
 	if s.dns == nil || !localDNSRuntimeEnabled(settings.DNS) || !dnsSettingsNeedSystemBootstrap(settings.DNS) {
 		return settings, nil
@@ -2981,6 +3042,9 @@ func (s *Service) prepareRuntimeDNSSettings(ctx context.Context, settings domain
 	}
 
 	settings.DNS.Bootstrap = append([]string(nil), resolvers...)
+	if err := validateBootstrapServers(settings.DNS.Bootstrap); err != nil {
+		return domain.Settings{}, fmt.Errorf("system dns resolvers: %w", err)
+	}
 	return settings, nil
 }
 

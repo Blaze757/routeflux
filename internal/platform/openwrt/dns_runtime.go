@@ -135,6 +135,9 @@ func (m DNSRuntimeManager) Status(ctx context.Context) (domain.DNSRuntimeStatus,
 
 func (m DNSRuntimeManager) restartDNSMasq(ctx context.Context) error {
 	script := firstNonEmpty(m.DNSMasqServicePath, dnsmasqServicePath())
+	if err := ValidateDNSMasqServicePath(script); err != nil {
+		return err
+	}
 	if script == "" {
 		return nil
 	}

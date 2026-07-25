@@ -76,10 +76,10 @@ func (m ZapretManager) Apply(ctx context.Context, domains, cidrs []string) (doma
 		return status, fmt.Errorf("prepare zapret config: %w", err)
 	}
 
-	if err := atomicWriteText(m.hostlistPath(), buildZapretList("# Managed by RouteFlux", domains), 0o644); err != nil {
+	if err := atomicWriteText(m.hostlistPath(), buildZapretList("# Managed by RouteFlux", domains), 0o600); err != nil {
 		return status, fmt.Errorf("write zapret hostlist: %w", err)
 	}
-	if err := atomicWriteText(m.ipListPath(), buildZapretList("# Managed by RouteFlux", cidrs), 0o644); err != nil {
+	if err := atomicWriteText(m.ipListPath(), buildZapretList("# Managed by RouteFlux", cidrs), 0o600); err != nil {
 		return status, fmt.Errorf("write zapret ip list: %w", err)
 	}
 
@@ -91,7 +91,7 @@ func (m ZapretManager) Apply(ctx context.Context, domains, cidrs []string) (doma
 	if err != nil {
 		return status, fmt.Errorf("encode zapret marker: %w", err)
 	}
-	if err := atomicWriteText(m.markerPath(), string(markerData)+"\n", 0o644); err != nil {
+	if err := atomicWriteText(m.markerPath(), string(markerData)+"\n", 0o600); err != nil {
 		return status, fmt.Errorf("write zapret marker: %w", err)
 	}
 
@@ -205,7 +205,7 @@ func (m ZapretManager) backupOriginalFile(path, backupPath string) error {
 		return err
 	}
 
-	return atomicWriteText(backupPath, string(data), 0o644)
+	return atomicWriteText(backupPath, string(data), 0o600)
 }
 
 func (m ZapretManager) restoreManagedFile(path, backupPath string) error {
@@ -213,13 +213,16 @@ func (m ZapretManager) restoreManagedFile(path, backupPath string) error {
 	if err != nil {
 		return fmt.Errorf("read backup %s: %w", backupPath, err)
 	}
-	if err := atomicWriteText(path, string(data), 0o644); err != nil {
+	if err := atomicWriteText(path, string(data), 0o600); err != nil {
 		return fmt.Errorf("restore %s: %w", path, err)
 	}
 	return nil
 }
 
 func (m ZapretManager) serviceStatus(ctx context.Context) (string, bool, error) {
+	if err := ValidateZapretServicePath(m.servicePath()); err != nil {
+		return "", false, err
+	}
 	cmd := exec.CommandContext(ctx, m.servicePath(), "status")
 	output, err := cmd.CombinedOutput()
 	serviceState := strings.TrimSpace(string(output))
@@ -236,6 +239,9 @@ func (m ZapretManager) serviceStatus(ctx context.Context) (string, bool, error) 
 }
 
 func (m ZapretManager) run(ctx context.Context, action string) error {
+	if err := ValidateZapretServicePath(m.servicePath()); err != nil {
+		return err
+	}
 	cmd := exec.CommandContext(ctx, m.servicePath(), action)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("run %s %s: %w: %s", m.servicePath(), action, err, string(output))
@@ -300,7 +306,7 @@ func (m ZapretManager) syncConfig(cidrs []string) error {
 	}
 
 	managed := buildManagedZapretConfig(string(data), m.ipListPath(), len(cidrs) > 0)
-	return atomicWriteText(m.configPath(), managed, 0o644)
+	return atomicWriteText(m.configPath(), managed, 0o600)
 }
 
 func buildManagedZapretConfig(base, ipListPath string, enableIPProfile bool) string {

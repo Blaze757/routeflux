@@ -22,7 +22,11 @@ const (
 // RootDir returns the RouteFlux state directory.
 func RootDir() string {
 	if root := os.Getenv("ROUTEFLUX_ROOT"); root != "" {
-		return root
+		clean := filepath.Clean(root)
+		if !filepath.IsAbs(clean) || strings.Contains(clean, "..") {
+			return defaultRoot
+		}
+		return clean
 	}
 	if IsOpenWrt() {
 		return defaultRoot

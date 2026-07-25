@@ -98,6 +98,12 @@ func NewFirewallManager() (FirewallManager, error) {
 	if err := validateIPPath(m.IPPath); err != nil {
 		return FirewallManager{}, err
 	}
+	if err := ValidateDNSMasqPath(m.DNSMasqPath); err != nil {
+		return FirewallManager{}, err
+	}
+	if err := ValidateDNSMasqServicePath(m.DNSMasqServicePath); err != nil {
+		return FirewallManager{}, err
+	}
 	return m, nil
 }
 

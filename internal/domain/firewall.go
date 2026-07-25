@@ -735,13 +735,36 @@ func normalizeFirewallDomain(value string) (string, error) {
 		return "", fmt.Errorf("unsupported target %q: use a supported service preset or a fully qualified domain like youtube.com", value)
 	}
 
+	// Block reserved TLDs
+	reservedTLDs := []string{".local", ".internal", ".test", ".localhost", ".onion"}
+	for _, tld := range reservedTLDs {
+		if strings.HasSuffix(value, tld) || strings.HasSuffix(value, tld+".") {
+			return "", fmt.Errorf("reserved TLD not allowed: %s", tld)
+		}
+	}
+
 	labels := strings.Split(value, ".")
 	for _, label := range labels {
-		switch {
-		case label == "":
-			return "", fmt.Errorf("unsupported target %q: invalid domain name", value)
-		case strings.HasPrefix(label, "-"), strings.HasSuffix(label, "-"):
-			return "", fmt.Errorf("unsupported target %q: invalid domain label %q", value, label)
+		if len(label) == 0 || len(label) > 63 {
+			return "", fmt.Errorf("invalid label length in domain: %s", value)
+		}
+		if strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return "", fmt.Errorf("domain label cannot start/end with hyphen: %s", label)
+		}
+
+		// Detect punycode (IDN) labels for awareness
+		if strings.HasPrefix(label, "xn--") {
+			// Punycode label detected - valid but flag for awareness
+			for _, other := range labels {
+				if other == label || strings.HasPrefix(other, "xn--") {
+					continue
+				}
+				for _, r := range other {
+					if r >= 0x00C0 && r <= 0x024F {
+						return "", fmt.Errorf("domain contains confusable characters near punycode label %q", label)
+					}
+				}
+			}
 		}
 
 		for _, r := range label {
