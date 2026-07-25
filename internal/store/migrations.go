@@ -1,0 +1,439 @@
+package store
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/Blaze757/routeflux/internal/domain"
+)
+
+var (
+	ErrUnsupportedSettingsSchema = errors.New("unsupported settings schema version")
+	ErrUnsupportedStateSchema    = errors.New("unsupported state schema version")
+)
+
+func decodeSettings(data []byte, path string) (domain.Settings, error) {
+	type rawDNSSettings struct {
+		Mode          *domain.DNSMode      `json:"mode"`
+		Transport     *domain.DNSTransport `json:"transport"`
+		Servers       *[]string            `json:"servers"`
+		Bootstrap     *[]string            `json:"bootstrap"`
+		DirectDomains *[]string            `json:"direct_domains"`
+	}
+
+	type rawFirewallSelectorSet struct {
+		Services *[]string `json:"services"`
+		Domains  *[]string `json:"domains"`
+		CIDRs    *[]string `json:"cidrs"`
+	}
+
+	type rawFirewallSplitSettings struct {
+		Proxy           *rawFirewallSelectorSet       `json:"proxy"`
+		Bypass          *rawFirewallSelectorSet       `json:"bypass"`
+		ExcludedSources *[]string                     `json:"excluded_sources"`
+		DefaultAction   *domain.FirewallDefaultAction `json:"default_action"`
+	}
+
+	type rawFirewallModeDraft struct {
+		TargetServices *[]string `json:"target_services"`
+		TargetCIDRs    *[]string `json:"target_cidrs"`
+		TargetDomains  *[]string `json:"target_domains"`
+		SourceCIDRs    *[]string `json:"source_cidrs"`
+	}
+
+	type rawFirewallSplitDraft struct {
+		Proxy           *rawFirewallSelectorSet `json:"proxy"`
+		Bypass          *rawFirewallSelectorSet `json:"bypass"`
+		ExcludedSources *[]string               `json:"excluded_sources"`
+	}
+
+	type rawFirewallModeDrafts struct {
+		Hosts      *rawFirewallModeDraft  `json:"hosts"`
+		Targets    *rawFirewallModeDraft  `json:"targets"`
+		Split      *rawFirewallSplitDraft `json:"split"`
+		AntiTarget *rawFirewallModeDraft  `json:"anti_target"`
+	}
+
+	type rawFirewallSettings struct {
+		Enabled              *bool                                       `json:"enabled"`
+		TransparentPort      *int                                        `json:"transparent_port"`
+		Mode                 *domain.FirewallMode                        `json:"mode"`
+		DisableIPv6          *bool                                       `json:"disable_ipv6"`
+		Hosts                *[]string                                   `json:"hosts"`
+		Targets              *rawFirewallSelectorSet                     `json:"targets"`
+		Split                *rawFirewallSplitSettings                   `json:"split"`
+		TargetServiceCatalog *map[string]domain.FirewallTargetDefinition `json:"target_service_catalog"`
+		ModeDrafts           *rawFirewallModeDrafts                      `json:"mode_drafts"`
+		BlockQUIC            *bool                                       `json:"block_quic"`
+		LegacyTargetMode     *domain.FirewallTargetMode                  `json:"target_mode"`
+		LegacyTargetServices *[]string                                   `json:"target_services"`
+		LegacyTargetCIDRs    *[]string                                   `json:"target_cidrs"`
+		LegacyTargetDomains  *[]string                                   `json:"target_domains"`
+		LegacySourceCIDRs    *[]string                                   `json:"source_cidrs"`
+	}
+
+	type rawZapretSettings struct {
+		Enabled                  *bool                   `json:"enabled"`
+		Selectors                *rawFirewallSelectorSet `json:"selectors"`
+		FailbackSuccessThreshold *int                    `json:"failback_success_threshold"`
+	}
+
+	type rawSettings struct {
+		SchemaVersion       *int                  `json:"schema_version"`
+		RefreshInterval     *domain.Duration      `json:"refresh_interval"`
+		HealthCheckInterval *domain.Duration      `json:"health_check_interval"`
+		SwitchCooldown      *domain.Duration      `json:"switch_cooldown"`
+		LatencyThreshold    *domain.Duration      `json:"latency_threshold"`
+		AutoExcludedNodes   *[]string             `json:"auto_excluded_nodes"`
+		DNS                 *rawDNSSettings       `json:"dns"`
+		Firewall            *rawFirewallSettings  `json:"firewall"`
+		Zapret              *rawZapretSettings    `json:"zapret"`
+		AutoMode            *bool                 `json:"auto_mode"`
+		Mode                *domain.SelectionMode `json:"mode"`
+		LogLevel            *string               `json:"log_level"`
+		HWID                *string               `json:"hwid"`
+	}
+
+	var raw rawSettings
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return domain.Settings{}, fmt.Errorf("unmarshal %s: %w", path, err)
+	}
+
+	settings := domain.DefaultSettings()
+	schemaVersion := 0
+	if raw.SchemaVersion != nil {
+		schemaVersion = *raw.SchemaVersion
+	}
+	if schemaVersion > settings.SchemaVersion {
+		return domain.Settings{}, fmt.Errorf("%w %d", ErrUnsupportedSettingsSchema, schemaVersion)
+	}
+
+	if raw.RefreshInterval != nil {
+		settings.RefreshInterval = *raw.RefreshInterval
+	}
+	if raw.HealthCheckInterval != nil {
+		settings.HealthCheckInterval = *raw.HealthCheckInterval
+	}
+	if raw.SwitchCooldown != nil {
+		settings.SwitchCooldown = *raw.SwitchCooldown
+	}
+	if raw.LatencyThreshold != nil {
+		settings.LatencyThreshold = *raw.LatencyThreshold
+	}
+	if raw.AutoExcludedNodes != nil {
+		settings.AutoExcludedNodes = append([]string(nil), (*raw.AutoExcludedNodes)...)
+	}
+	if raw.AutoMode != nil {
+		settings.AutoMode = *raw.AutoMode
+	}
+	if raw.Mode != nil {
+		settings.Mode = *raw.Mode
+	}
+	if raw.LogLevel != nil {
+		settings.LogLevel = *raw.LogLevel
+	}
+	if raw.HWID != nil {
+		settings.HWID = *raw.HWID
+	}
+
+	if raw.DNS != nil {
+		if raw.DNS.Mode != nil {
+			settings.DNS.Mode = *raw.DNS.Mode
+		}
+		if raw.DNS.Transport != nil {
+			settings.DNS.Transport = *raw.DNS.Transport
+		}
+		if raw.DNS.Servers != nil {
+			settings.DNS.Servers = append([]string(nil), (*raw.DNS.Servers)...)
+		}
+		if raw.DNS.Bootstrap != nil {
+			settings.DNS.Bootstrap = append([]string(nil), (*raw.DNS.Bootstrap)...)
+		}
+		if raw.DNS.DirectDomains != nil {
+			settings.DNS.DirectDomains = append([]string(nil), (*raw.DNS.DirectDomains)...)
+		}
+	}
+
+	decodeSelectorSet := func(dst *domain.FirewallSelectorSet, rawSet *rawFirewallSelectorSet) {
+		if rawSet == nil {
+			return
+		}
+		if rawSet.Services != nil {
+			dst.Services = append([]string(nil), (*rawSet.Services)...)
+		}
+		if rawSet.Domains != nil {
+			dst.Domains = append([]string(nil), (*rawSet.Domains)...)
+		}
+		if rawSet.CIDRs != nil {
+			dst.CIDRs = append([]string(nil), (*rawSet.CIDRs)...)
+		}
+	}
+
+	if raw.Firewall != nil {
+		if raw.Firewall.Enabled != nil {
+			settings.Firewall.Enabled = *raw.Firewall.Enabled
+		}
+		if raw.Firewall.TransparentPort != nil {
+			settings.Firewall.TransparentPort = *raw.Firewall.TransparentPort
+		}
+		if raw.Firewall.Mode != nil {
+			settings.Firewall.Mode = domain.NormalizeFirewallMode(*raw.Firewall.Mode)
+		}
+		if raw.Firewall.DisableIPv6 != nil {
+			settings.Firewall.DisableIPv6 = *raw.Firewall.DisableIPv6
+		}
+		if raw.Firewall.Hosts != nil {
+			settings.Firewall.Hosts = append([]string(nil), (*raw.Firewall.Hosts)...)
+		}
+		if raw.Firewall.Targets != nil {
+			decodeSelectorSet(&settings.Firewall.Targets, raw.Firewall.Targets)
+		}
+		if raw.Firewall.Split != nil {
+			decodeSelectorSet(&settings.Firewall.Split.Proxy, raw.Firewall.Split.Proxy)
+			decodeSelectorSet(&settings.Firewall.Split.Bypass, raw.Firewall.Split.Bypass)
+			if raw.Firewall.Split.ExcludedSources != nil {
+				settings.Firewall.Split.ExcludedSources = append([]string(nil), (*raw.Firewall.Split.ExcludedSources)...)
+			}
+			if raw.Firewall.Split.DefaultAction != nil {
+				settings.Firewall.Split.DefaultAction = domain.NormalizeFirewallDefaultAction(*raw.Firewall.Split.DefaultAction)
+			}
+		}
+		if raw.Firewall.TargetServiceCatalog != nil {
+			settings.Firewall.TargetServiceCatalog = domain.CloneFirewallTargetCatalog(*raw.Firewall.TargetServiceCatalog)
+		}
+		if raw.Firewall.ModeDrafts != nil {
+			if raw.Firewall.ModeDrafts.Hosts != nil {
+				if raw.Firewall.ModeDrafts.Hosts.TargetServices != nil {
+					settings.Firewall.ModeDrafts.Hosts.TargetServices = append([]string(nil), (*raw.Firewall.ModeDrafts.Hosts.TargetServices)...)
+				}
+				if raw.Firewall.ModeDrafts.Hosts.TargetCIDRs != nil {
+					settings.Firewall.ModeDrafts.Hosts.TargetCIDRs = append([]string(nil), (*raw.Firewall.ModeDrafts.Hosts.TargetCIDRs)...)
+				}
+				if raw.Firewall.ModeDrafts.Hosts.TargetDomains != nil {
+					settings.Firewall.ModeDrafts.Hosts.TargetDomains = append([]string(nil), (*raw.Firewall.ModeDrafts.Hosts.TargetDomains)...)
+				}
+				if raw.Firewall.ModeDrafts.Hosts.SourceCIDRs != nil {
+					settings.Firewall.ModeDrafts.Hosts.SourceCIDRs = append([]string(nil), (*raw.Firewall.ModeDrafts.Hosts.SourceCIDRs)...)
+				}
+			}
+			if raw.Firewall.ModeDrafts.Targets != nil {
+				if raw.Firewall.ModeDrafts.Targets.TargetServices != nil {
+					settings.Firewall.ModeDrafts.Targets.TargetServices = append([]string(nil), (*raw.Firewall.ModeDrafts.Targets.TargetServices)...)
+				}
+				if raw.Firewall.ModeDrafts.Targets.TargetCIDRs != nil {
+					settings.Firewall.ModeDrafts.Targets.TargetCIDRs = append([]string(nil), (*raw.Firewall.ModeDrafts.Targets.TargetCIDRs)...)
+				}
+				if raw.Firewall.ModeDrafts.Targets.TargetDomains != nil {
+					settings.Firewall.ModeDrafts.Targets.TargetDomains = append([]string(nil), (*raw.Firewall.ModeDrafts.Targets.TargetDomains)...)
+				}
+				if raw.Firewall.ModeDrafts.Targets.SourceCIDRs != nil {
+					settings.Firewall.ModeDrafts.Targets.SourceCIDRs = append([]string(nil), (*raw.Firewall.ModeDrafts.Targets.SourceCIDRs)...)
+				}
+			}
+			if raw.Firewall.ModeDrafts.Split != nil {
+				decodeSelectorSet(&settings.Firewall.ModeDrafts.Split.Proxy, raw.Firewall.ModeDrafts.Split.Proxy)
+				decodeSelectorSet(&settings.Firewall.ModeDrafts.Split.Bypass, raw.Firewall.ModeDrafts.Split.Bypass)
+				if raw.Firewall.ModeDrafts.Split.ExcludedSources != nil {
+					settings.Firewall.ModeDrafts.Split.ExcludedSources = append([]string(nil), (*raw.Firewall.ModeDrafts.Split.ExcludedSources)...)
+				}
+			} else if raw.Firewall.ModeDrafts.AntiTarget != nil {
+				if raw.Firewall.ModeDrafts.AntiTarget.TargetServices != nil {
+					settings.Firewall.ModeDrafts.Split.Bypass.Services = append([]string(nil), (*raw.Firewall.ModeDrafts.AntiTarget.TargetServices)...)
+				}
+				if raw.Firewall.ModeDrafts.AntiTarget.TargetCIDRs != nil {
+					settings.Firewall.ModeDrafts.Split.Bypass.CIDRs = append([]string(nil), (*raw.Firewall.ModeDrafts.AntiTarget.TargetCIDRs)...)
+				}
+				if raw.Firewall.ModeDrafts.AntiTarget.TargetDomains != nil {
+					settings.Firewall.ModeDrafts.Split.Bypass.Domains = append([]string(nil), (*raw.Firewall.ModeDrafts.AntiTarget.TargetDomains)...)
+				}
+			}
+		}
+
+		if raw.Firewall.Mode == nil {
+			legacyTargets := domain.FirewallSelectorSet{}
+			if raw.Firewall.LegacyTargetServices != nil {
+				legacyTargets.Services = append([]string(nil), (*raw.Firewall.LegacyTargetServices)...)
+			}
+			if raw.Firewall.LegacyTargetDomains != nil {
+				legacyTargets.Domains = append([]string(nil), (*raw.Firewall.LegacyTargetDomains)...)
+			}
+			if raw.Firewall.LegacyTargetCIDRs != nil {
+				legacyTargets.CIDRs = append([]string(nil), (*raw.Firewall.LegacyTargetCIDRs)...)
+			}
+			if raw.Firewall.LegacySourceCIDRs != nil {
+				settings.Firewall.Hosts = append([]string(nil), (*raw.Firewall.LegacySourceCIDRs)...)
+			}
+
+			switch {
+			case len(settings.Firewall.Hosts) > 0:
+				settings.Firewall.Mode = domain.FirewallModeHosts
+			case domain.FirewallSelectorSetHasEntries(legacyTargets):
+				if raw.Firewall.LegacyTargetMode != nil && *raw.Firewall.LegacyTargetMode == domain.FirewallTargetModeBypass {
+					settings.Firewall.Mode = domain.FirewallModeSplit
+					settings.Firewall.Split = domain.DefaultFirewallSplitSettings()
+					settings.Firewall.Split.Bypass = legacyTargets
+					settings.Firewall.Split.DefaultAction = domain.FirewallDefaultActionProxy
+				} else {
+					settings.Firewall.Mode = domain.FirewallModeTargets
+					settings.Firewall.Targets = legacyTargets
+				}
+			default:
+				settings.Firewall.Mode = domain.FirewallModeDisabled
+			}
+		}
+
+		// Schema 7 made block_quic effective in the generated Xray config.
+		// Older persisted values were effectively no-ops, so migrate legacy
+		// installs to the new safe default unless the user re-saves the setting.
+		if raw.Firewall.BlockQUIC != nil && schemaVersion >= 7 {
+			settings.Firewall.BlockQUIC = *raw.Firewall.BlockQUIC
+		}
+	}
+
+	if raw.Zapret != nil {
+		if raw.Zapret.Enabled != nil {
+			settings.Zapret.Enabled = *raw.Zapret.Enabled
+		}
+		if raw.Zapret.Selectors != nil {
+			decodeSelectorSet(&settings.Zapret.Selectors, raw.Zapret.Selectors)
+			settings.Zapret.Selectors.CIDRs = nil
+		}
+		if raw.Zapret.FailbackSuccessThreshold != nil {
+			settings.Zapret.FailbackSuccessThreshold = *raw.Zapret.FailbackSuccessThreshold
+		}
+		settings.Zapret = domain.CanonicalZapretSettings(settings.Zapret)
+	}
+
+	if raw.AutoMode != nil && raw.Mode == nil && *raw.AutoMode {
+		settings.Mode = domain.SelectionModeAuto
+	}
+
+	settings.AutoExcludedNodes = domain.NormalizeAutoExcludedNodes(settings.AutoExcludedNodes)
+	settings.SchemaVersion = domain.DefaultSettings().SchemaVersion
+	return settings, nil
+}
+
+func decodeState(data []byte, path string) (domain.RuntimeState, error) {
+	type rawZapretTestRestoreState struct {
+		ActiveSubscriptionID *string               `json:"active_subscription_id"`
+		ActiveNodeID         *string               `json:"active_node_id"`
+		Mode                 *domain.SelectionMode `json:"mode"`
+		Connected            *bool                 `json:"connected"`
+		ActiveTransport      *domain.TransportMode `json:"active_transport"`
+	}
+
+	type rawZapretTestState struct {
+		Active  *bool                      `json:"active"`
+		Restore *rawZapretTestRestoreState `json:"restore"`
+	}
+
+	type rawState struct {
+		SchemaVersion              *int                          `json:"schema_version"`
+		ActiveSubscriptionID       *string                       `json:"active_subscription_id"`
+		ActiveNodeID               *string                       `json:"active_node_id"`
+		Mode                       *domain.SelectionMode         `json:"mode"`
+		Connected                  *bool                         `json:"connected"`
+		ActiveTransport            *domain.TransportMode         `json:"active_transport"`
+		LastRefreshAt              *map[string]time.Time         `json:"last_refresh_at"`
+		Health                     *map[string]domain.NodeHealth `json:"health"`
+		LastSwitchAt               *time.Time                    `json:"last_switch_at"`
+		LastTransportSwitchAt      *time.Time                    `json:"last_transport_switch_at"`
+		LastSuccessAt              *time.Time                    `json:"last_success_at"`
+		LastFailureReason          *string                       `json:"last_failure_reason"`
+		LastTransportFailureReason *string                       `json:"last_transport_failure_reason"`
+		ZapretTest                 *rawZapretTestState           `json:"zapret_test"`
+	}
+
+	var raw rawState
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return domain.RuntimeState{}, fmt.Errorf("unmarshal %s: %w", path, err)
+	}
+
+	state := domain.DefaultRuntimeState()
+	schemaVersion := 0
+	if raw.SchemaVersion != nil {
+		schemaVersion = *raw.SchemaVersion
+	}
+	if schemaVersion > state.SchemaVersion {
+		return domain.RuntimeState{}, fmt.Errorf("%w %d", ErrUnsupportedStateSchema, schemaVersion)
+	}
+
+	if raw.ActiveSubscriptionID != nil {
+		state.ActiveSubscriptionID = *raw.ActiveSubscriptionID
+	}
+	if raw.ActiveNodeID != nil {
+		state.ActiveNodeID = *raw.ActiveNodeID
+	}
+	if raw.Mode != nil {
+		state.Mode = *raw.Mode
+	}
+	if raw.Connected != nil {
+		state.Connected = *raw.Connected
+	}
+	if raw.ActiveTransport != nil {
+		state.ActiveTransport = domain.NormalizeTransportMode(*raw.ActiveTransport)
+	}
+	if raw.LastRefreshAt != nil {
+		state.LastRefreshAt = *raw.LastRefreshAt
+	}
+	if raw.Health != nil {
+		state.Health = *raw.Health
+	}
+	if raw.LastSwitchAt != nil {
+		state.LastSwitchAt = *raw.LastSwitchAt
+	}
+	if raw.LastTransportSwitchAt != nil {
+		state.LastTransportSwitchAt = *raw.LastTransportSwitchAt
+	}
+	if raw.LastSuccessAt != nil {
+		state.LastSuccessAt = *raw.LastSuccessAt
+	}
+	if raw.LastFailureReason != nil {
+		state.LastFailureReason = *raw.LastFailureReason
+	}
+	if raw.LastTransportFailureReason != nil {
+		state.LastTransportFailureReason = *raw.LastTransportFailureReason
+	}
+	if raw.ZapretTest != nil {
+		if raw.ZapretTest.Active != nil {
+			state.ZapretTest.Active = *raw.ZapretTest.Active
+		}
+		if raw.ZapretTest.Restore != nil {
+			if raw.ZapretTest.Restore.ActiveSubscriptionID != nil {
+				state.ZapretTest.Restore.ActiveSubscriptionID = *raw.ZapretTest.Restore.ActiveSubscriptionID
+			}
+			if raw.ZapretTest.Restore.ActiveNodeID != nil {
+				state.ZapretTest.Restore.ActiveNodeID = *raw.ZapretTest.Restore.ActiveNodeID
+			}
+			if raw.ZapretTest.Restore.Mode != nil {
+				state.ZapretTest.Restore.Mode = *raw.ZapretTest.Restore.Mode
+			}
+			if raw.ZapretTest.Restore.Connected != nil {
+				state.ZapretTest.Restore.Connected = *raw.ZapretTest.Restore.Connected
+			}
+			if raw.ZapretTest.Restore.ActiveTransport != nil {
+				state.ZapretTest.Restore.ActiveTransport = domain.NormalizeTransportMode(*raw.ZapretTest.Restore.ActiveTransport)
+			}
+		}
+	}
+
+	if state.LastRefreshAt == nil {
+		state.LastRefreshAt = make(map[string]time.Time)
+	}
+	if state.Health == nil {
+		state.Health = make(map[string]domain.NodeHealth)
+	}
+	if raw.ActiveTransport == nil {
+		if state.Connected {
+			state.ActiveTransport = domain.TransportModeProxy
+		} else {
+			state.ActiveTransport = domain.TransportModeDirect
+		}
+	}
+	state.ActiveTransport = domain.NormalizeTransportMode(state.ActiveTransport)
+
+	state.SchemaVersion = domain.DefaultRuntimeState().SchemaVersion
+	return state, nil
+}

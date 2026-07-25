@@ -1,0 +1,101 @@
+package xray
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+)
+
+func TestInitdControllerStatusDetectsActiveWithNoInstances(t *testing.T) {
+	t.Parallel()
+
+	script := writeStatusScript(t, "#!/bin/sh\necho 'active with no instances'\nexit 0\n")
+	controller := InitdController{ScriptPath: script}
+
+	status, err := controller.Status(context.Background())
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+
+	if status.Running {
+		t.Fatal("expected runtime to be reported as not running")
+	}
+	if status.ServiceState != "active with no instances" {
+		t.Fatalf("unexpected service state: %q", status.ServiceState)
+	}
+}
+
+func TestInitdControllerStatusDetectsRunningProcess(t *testing.T) {
+	t.Parallel()
+
+	script := writeStatusScript(t, "#!/bin/sh\necho 'running'\nexit 0\n")
+	controller := InitdController{ScriptPath: script}
+
+	status, err := controller.Status(context.Background())
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+
+	if !status.Running {
+		t.Fatal("expected runtime to be reported as running")
+	}
+	if status.ServiceState != "running" {
+		t.Fatalf("unexpected service state: %q", status.ServiceState)
+	}
+}
+
+func TestInitdControllerStatusTreatsUnknownAsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	script := writeStatusScript(t, "#!/bin/sh\necho 'unknown'\nexit 0\n")
+	controller := InitdController{ScriptPath: script}
+
+	status, err := controller.Status(context.Background())
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+
+	if status.Running {
+		t.Fatal("expected unknown status to be reported as not running")
+	}
+}
+
+func TestInitdControllerStatusTreatsUnrecognizedOutputAsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	script := writeStatusScript(t, "#!/bin/sh\necho 'mystery state'\nexit 0\n")
+	controller := InitdController{ScriptPath: script}
+
+	status, err := controller.Status(context.Background())
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+
+	if status.Running {
+		t.Fatal("expected unrecognized status to be reported as not running")
+	}
+}
+
+func TestRuntimeBackendStatusUsesConfigPath(t *testing.T) {
+	t.Parallel()
+
+	script := writeStatusScript(t, "#!/bin/sh\necho 'running'\nexit 0\n")
+	backend := NewRuntimeBackend("/etc/xray/config.json", InitdController{ScriptPath: script})
+
+	status, err := backend.Status(context.Background())
+	if err != nil {
+		t.Fatalf("backend status: %v", err)
+	}
+
+	if status.ConfigPath != "/etc/xray/config.json" {
+		t.Fatalf("unexpected config path: %q", status.ConfigPath)
+	}
+}
+
+func writeStatusScript(t *testing.T, body string) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "xray-status.sh")
+	return writeTestExecutable(t, path, body)
+}

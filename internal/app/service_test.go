@@ -1,0 +1,4383 @@
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Blaze757/routeflux/internal/backend"
+	"github.com/Blaze757/routeflux/internal/domain"
+	"github.com/Blaze757/routeflux/internal/probe"
+)
+
+func writeResponse(w http.ResponseWriter, body string) {
+	_, _ = io.WriteString(w, body)
+}
+
+func assertSubscriptionTraffic(t *testing.T, sub domain.Subscription, upload, download, total int64) {
+	t.Helper()
+
+	if sub.Traffic == nil {
+		t.Fatal("expected subscription traffic metadata")
+	}
+	if sub.Traffic.UploadBytes != upload || sub.Traffic.DownloadBytes != download || sub.Traffic.TotalBytes != total {
+		t.Fatalf("unexpected traffic metadata: got %+v want upload=%d download=%d total=%d", sub.Traffic, upload, download, total)
+	}
+}
+
+func TestConfigureFirewallHostsClearsDestinationTargets(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{CIDRs: []string{"1.1.1.1"}}
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.ConfigureFirewallHosts(context.Background(), []string{"192.168.1.150"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall hosts: %v", err)
+	}
+
+	if !settings.Enabled {
+		t.Fatal("expected firewall to be enabled")
+	}
+	if settings.TransparentPort != 23456 {
+		t.Fatalf("unexpected transparent port: %d", settings.TransparentPort)
+	}
+	if len(settings.Targets.CIDRs) != 0 {
+		t.Fatalf("expected destination targets to be cleared, got %v", settings.Targets.CIDRs)
+	}
+	if len(settings.Targets.Domains) != 0 {
+		t.Fatalf("expected destination target domains to be cleared, got %v", settings.Targets.Domains)
+	}
+	if len(settings.Targets.Services) != 0 {
+		t.Fatalf("expected destination target services to be cleared, got %v", settings.Targets.Services)
+	}
+	if len(settings.Hosts) != 1 || settings.Hosts[0] != "192.168.1.150" {
+		t.Fatalf("unexpected source hosts: %v", settings.Hosts)
+	}
+	if settings.BlockQUIC {
+		t.Fatal("expected QUIC proxying to stay enabled for host routing by default")
+	}
+}
+
+func TestConfigureFirewallParsesMixedTargetsAndValidatesBeforeSave(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	firewall := &recordingFirewaller{
+		validateErr: fmt.Errorf("dnsmasq-full is required for domain targets"),
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: firewall})
+
+	_, err := service.ConfigureFirewall(context.Background(), []string{"youtube", "youtube.com", "1.1.1.1"}, true, 23456)
+	if err == nil {
+		t.Fatal("expected configure firewall to fail")
+	}
+	if !strings.Contains(err.Error(), "dnsmasq-full") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(firewall.validated) != 1 {
+		t.Fatalf("expected validate to be called once, got %d", len(firewall.validated))
+	}
+	if !reflect.DeepEqual(firewall.validated[0].Targets.Services, []string{"youtube"}) {
+		t.Fatalf("unexpected validated target services: %+v", firewall.validated[0].Targets.Services)
+	}
+	if !reflect.DeepEqual(firewall.validated[0].Targets.CIDRs, []string{"1.1.1.1"}) {
+		t.Fatalf("unexpected validated target cidrs: %+v", firewall.validated[0].Targets.CIDRs)
+	}
+	if !reflect.DeepEqual(firewall.validated[0].Targets.Domains, []string{"youtube.com"}) {
+		t.Fatalf("unexpected validated target domains: %+v", firewall.validated[0].Targets.Domains)
+	}
+	if len(store.settings.Firewall.Targets.Services) != 0 || len(store.settings.Firewall.Targets.CIDRs) != 0 || len(store.settings.Firewall.Targets.Domains) != 0 {
+		t.Fatalf("expected settings to stay unchanged on validate failure, got %+v", store.settings.Firewall)
+	}
+}
+
+func TestConfigureFirewallClearsHostsAndStoresTargetSelectors(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewall(context.Background(), []string{"YouTube", "YouTube.com", "1.1.1.1"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall: %v", err)
+	}
+
+	if len(settings.Hosts) != 0 {
+		t.Fatalf("expected hosts to be cleared, got %v", settings.Hosts)
+	}
+	if !reflect.DeepEqual(settings.Targets.Services, []string{"youtube"}) {
+		t.Fatalf("unexpected target services: %+v", settings.Targets.Services)
+	}
+	if !reflect.DeepEqual(settings.Targets.CIDRs, []string{"1.1.1.1"}) {
+		t.Fatalf("unexpected target cidrs: %+v", settings.Targets.CIDRs)
+	}
+	if !reflect.DeepEqual(settings.Targets.Domains, []string{"youtube.com"}) {
+		t.Fatalf("unexpected target domains: %+v", settings.Targets.Domains)
+	}
+}
+
+func TestConfigureFirewallAntiTargetsClearsHostsAndStoresTargetSelectors(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewallAntiTargets(context.Background(), []string{"YouTube", "YouTube.com", "1.1.1.1"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall anti-targets: %v", err)
+	}
+
+	if len(settings.Hosts) != 0 {
+		t.Fatalf("expected hosts to be cleared, got %v", settings.Hosts)
+	}
+	if settings.Mode != domain.FirewallModeSplit {
+		t.Fatalf("expected split mode, got %q", settings.Mode)
+	}
+	if settings.Split.DefaultAction != domain.FirewallDefaultActionProxy {
+		t.Fatalf("expected split default action proxy, got %q", settings.Split.DefaultAction)
+	}
+	if !reflect.DeepEqual(settings.Split.Bypass.Services, []string{"youtube"}) {
+		t.Fatalf("unexpected target services: %+v", settings.Split.Bypass.Services)
+	}
+	if !reflect.DeepEqual(settings.Split.Bypass.CIDRs, []string{"1.1.1.1"}) {
+		t.Fatalf("unexpected target cidrs: %+v", settings.Split.Bypass.CIDRs)
+	}
+	if !reflect.DeepEqual(settings.Split.Bypass.Domains, []string{"youtube.com"}) {
+		t.Fatalf("unexpected target domains: %+v", settings.Split.Bypass.Domains)
+	}
+}
+
+func TestConfigureFirewallBypassStoresExcludedSources(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewallBypass(context.Background(), []string{"vk.com", "1.1.1.1"}, []string{"192.168.1.50"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall bypass: %v", err)
+	}
+
+	if settings.Mode != domain.FirewallModeSplit {
+		t.Fatalf("expected split mode, got %q", settings.Mode)
+	}
+	if settings.Split.DefaultAction != domain.FirewallDefaultActionProxy {
+		t.Fatalf("expected split default action proxy, got %q", settings.Split.DefaultAction)
+	}
+	if !reflect.DeepEqual(settings.Split.Bypass.Domains, []string{"vk.com"}) {
+		t.Fatalf("unexpected bypass domains: %+v", settings.Split.Bypass.Domains)
+	}
+	if !reflect.DeepEqual(settings.Split.Bypass.CIDRs, []string{"1.1.1.1"}) {
+		t.Fatalf("unexpected bypass cidrs: %+v", settings.Split.Bypass.CIDRs)
+	}
+	if !reflect.DeepEqual(settings.Split.ExcludedSources, []string{"192.168.1.50"}) {
+		t.Fatalf("unexpected excluded sources: %+v", settings.Split.ExcludedSources)
+	}
+}
+
+func TestSetZapretEnabledRejectsEmptySelectors(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store})
+
+	_, err := service.SetZapretEnabled(context.Background(), true)
+	if err == nil {
+		t.Fatal("expected zapret enable to reject empty selectors")
+	}
+	if !strings.Contains(err.Error(), "needs at least one allowed preset or selector") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSetZapretSelectorsAutoDisablesEmptySelectorsWhileEnabled(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Zapret.Enabled = true
+	store.settings.Zapret.Selectors = domain.FirewallSelectorSet{Services: []string{"youtube"}}
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.SetZapretSelectors(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("set zapret selectors: %v", err)
+	}
+	if settings.Enabled {
+		t.Fatal("expected empty selectors to auto-disable zapret fallback")
+	}
+	if len(settings.Selectors.Services) != 0 || len(settings.Selectors.Domains) != 0 || len(settings.Selectors.CIDRs) != 0 {
+		t.Fatalf("expected empty selectors after auto-disable, got %+v", settings.Selectors)
+	}
+}
+
+func TestUpdateFirewallBlockQUICCanonicalizesLegacyTargetsMode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = ""
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{
+		Services: []string{"youtube"},
+	}
+	firewall := &recordingFirewaller{}
+
+	service := NewService(Dependencies{Store: store, Firewaller: firewall})
+
+	settings, err := service.UpdateFirewallBlockQUIC(context.Background(), true)
+	if err != nil {
+		t.Fatalf("update firewall block-quic: %v", err)
+	}
+
+	if settings.Mode != domain.FirewallModeTargets {
+		t.Fatalf("expected canonical targets mode, got %q", settings.Mode)
+	}
+	if !settings.BlockQUIC {
+		t.Fatal("expected block-quic to be enabled")
+	}
+	if len(firewall.validated) != 1 {
+		t.Fatalf("expected one validation call, got %d", len(firewall.validated))
+	}
+	if firewall.validated[0].Mode != domain.FirewallModeTargets {
+		t.Fatalf("expected validated canonical targets mode, got %q", firewall.validated[0].Mode)
+	}
+}
+
+func TestUpdateFirewallDisableIPv6StoresSettingAndAppliesManager(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	ipv6 := &recordingIPv6Manager{}
+
+	service := NewService(Dependencies{
+		Store:       store,
+		IPv6Manager: ipv6,
+	})
+
+	settings, err := service.UpdateFirewallDisableIPv6(context.Background(), true)
+	if err != nil {
+		t.Fatalf("update firewall disable ipv6: %v", err)
+	}
+
+	if !settings.DisableIPv6 {
+		t.Fatal("expected disable-ipv6 to be enabled")
+	}
+	if !store.settings.Firewall.DisableIPv6 {
+		t.Fatal("expected stored firewall setting to keep disable-ipv6")
+	}
+	if !reflect.DeepEqual(ipv6.applied, []bool{true}) {
+		t.Fatalf("unexpected ipv6 apply calls: %+v", ipv6.applied)
+	}
+}
+
+func TestConnectManualReappliesManagedIPv6Disable(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.DisableIPv6 = true
+
+	ipv6 := &recordingIPv6Manager{}
+	service := NewService(Dependencies{
+		Store:       store,
+		Backend:     &recordingBackend{},
+		IPv6Manager: ipv6,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+	if !reflect.DeepEqual(ipv6.applied, []bool{true}) {
+		t.Fatalf("expected connect path to reapply managed ipv6 disable, got %+v", ipv6.applied)
+	}
+}
+
+func TestRestoreRuntimeReappliesManagedIPv6DisableWhileDisconnected(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.DisableIPv6 = true
+
+	ipv6 := &recordingIPv6Manager{}
+	service := NewService(Dependencies{
+		Store:       store,
+		Firewaller:  &recordingFirewaller{},
+		IPv6Manager: ipv6,
+	})
+
+	if err := service.RestoreRuntime(context.Background()); err != nil {
+		t.Fatalf("restore runtime: %v", err)
+	}
+	if !reflect.DeepEqual(ipv6.applied, []bool{true}) {
+		t.Fatalf("expected restore path to reapply managed ipv6 disable, got %+v", ipv6.applied)
+	}
+}
+
+func TestConfigureFirewallSupportsCustomServiceAliases(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.TargetServiceCatalog = map[string]domain.FirewallTargetDefinition{
+		"openai": {
+			Domains: []string{"openai.com", "chatgpt.com"},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewall(context.Background(), []string{"openai"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall: %v", err)
+	}
+
+	if !reflect.DeepEqual(settings.Targets.Services, []string{"openai"}) {
+		t.Fatalf("unexpected target services: %+v", settings.Targets.Services)
+	}
+}
+
+func TestConfigureFirewallHostsPreservesTargetServiceCatalog(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.TargetServiceCatalog = map[string]domain.FirewallTargetDefinition{
+		"openai": {Domains: []string{"openai.com"}},
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewallHosts(context.Background(), []string{"192.168.1.150"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall hosts: %v", err)
+	}
+
+	if !reflect.DeepEqual(settings.TargetServiceCatalog, map[string]domain.FirewallTargetDefinition{
+		"openai": {Domains: []string{"openai.com"}},
+	}) {
+		t.Fatalf("unexpected target service catalog: %+v", settings.TargetServiceCatalog)
+	}
+}
+
+func TestUpdateFirewallModeDraftDoesNotAffectActiveSettings(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"youtube"}}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.UpdateFirewallModeDraft(context.Background(), "hosts", []string{"all"})
+	if err != nil {
+		t.Fatalf("update firewall mode draft: %v", err)
+	}
+
+	if want := []string{"all"}; !reflect.DeepEqual(settings.ModeDrafts.Hosts.SourceCIDRs, want) {
+		t.Fatalf("unexpected hosts draft: %+v", settings.ModeDrafts.Hosts.SourceCIDRs)
+	}
+	if want := []string{"youtube"}; !reflect.DeepEqual(settings.Targets.Services, want) {
+		t.Fatalf("unexpected active target services: %+v", settings.Targets.Services)
+	}
+
+	settings, err = service.ClearFirewallModeDraft(context.Background(), "hosts")
+	if err != nil {
+		t.Fatalf("clear firewall mode draft: %v", err)
+	}
+	if !reflect.DeepEqual(settings.ModeDrafts.Hosts, domain.FirewallModeDraft{}) {
+		t.Fatalf("expected cleared hosts draft, got %+v", settings.ModeDrafts.Hosts)
+	}
+}
+
+func TestConfigureFirewallPreservesModeDraftsAcrossModeSwitches(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.ConfigureFirewall(context.Background(), []string{"youtube", "1.1.1.1"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall targets: %v", err)
+	}
+	if want := []string{"youtube"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetServices, want) {
+		t.Fatalf("unexpected targets draft services after targets save: %+v", settings.ModeDrafts.Targets.TargetServices)
+	}
+	if want := []string{"1.1.1.1"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetCIDRs, want) {
+		t.Fatalf("unexpected targets draft cidrs after targets save: %+v", settings.ModeDrafts.Targets.TargetCIDRs)
+	}
+
+	settings, err = service.ConfigureFirewallHosts(context.Background(), []string{"192.168.1.150"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall hosts: %v", err)
+	}
+
+	if want := []string{"192.168.1.150"}; !reflect.DeepEqual(settings.Hosts, want) {
+		t.Fatalf("unexpected active source hosts: %+v", settings.Hosts)
+	}
+	if len(settings.Targets.Services) != 0 || len(settings.Targets.CIDRs) != 0 || len(settings.Targets.Domains) != 0 {
+		t.Fatalf("expected active targets to be cleared, got %+v", settings)
+	}
+	if want := []string{"192.168.1.150"}; !reflect.DeepEqual(settings.ModeDrafts.Hosts.SourceCIDRs, want) {
+		t.Fatalf("unexpected hosts draft: %+v", settings.ModeDrafts.Hosts.SourceCIDRs)
+	}
+	if want := []string{"youtube"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetServices, want) {
+		t.Fatalf("unexpected preserved targets draft services: %+v", settings.ModeDrafts.Targets.TargetServices)
+	}
+	if want := []string{"1.1.1.1"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetCIDRs, want) {
+		t.Fatalf("unexpected preserved targets draft cidrs: %+v", settings.ModeDrafts.Targets.TargetCIDRs)
+	}
+}
+
+func TestDisableFirewallPreservesModeDrafts(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"daily"}}
+	store.settings.Firewall.ModeDrafts.Targets = domain.FirewallModeDraft{
+		TargetServices: []string{"daily"},
+		TargetDomains:  []string{"example.com"},
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	settings, err := service.DisableFirewall(context.Background())
+	if err != nil {
+		t.Fatalf("disable firewall: %v", err)
+	}
+
+	if settings.Enabled {
+		t.Fatal("expected firewall to be disabled")
+	}
+	if len(settings.Targets.Services) != 0 || len(settings.Targets.CIDRs) != 0 || len(settings.Targets.Domains) != 0 || len(settings.Hosts) != 0 {
+		t.Fatalf("expected active selectors to be cleared, got %+v", settings)
+	}
+	if want := []string{"daily"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetServices, want) {
+		t.Fatalf("unexpected preserved targets draft services: %+v", settings.ModeDrafts.Targets.TargetServices)
+	}
+	if want := []string{"example.com"}; !reflect.DeepEqual(settings.ModeDrafts.Targets.TargetDomains, want) {
+		t.Fatalf("unexpected preserved targets draft domains: %+v", settings.ModeDrafts.Targets.TargetDomains)
+	}
+}
+
+func TestSetFirewallTargetServiceReappliesConnectedRuntime(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"openai"}}
+	store.state.Connected = true
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+	store.state.Mode = domain.SelectionModeManual
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	entry, err := service.SetFirewallTargetService(context.Background(), "openai", []string{"openai.com", "chatgpt.com"})
+	if err != nil {
+		t.Fatalf("set firewall target service: %v", err)
+	}
+
+	if entry.Name != "openai" || entry.Source != domain.FirewallTargetServiceSourceCustom || entry.ReadOnly {
+		t.Fatalf("unexpected target service entry: %+v", entry)
+	}
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	if want := []string{"openai.com", "chatgpt.com"}; !reflect.DeepEqual(runtimeBackend.requests[0].TransparentProxyDomains, want) {
+		t.Fatalf("unexpected transparent target domains:\nwant: %+v\n got: %+v", want, runtimeBackend.requests[0].TransparentProxyDomains)
+	}
+	if len(firewall.applied) != 1 {
+		t.Fatalf("expected firewall apply once, got %d", len(firewall.applied))
+	}
+}
+
+func TestSetFirewallTargetServiceSkipsReapplyForUnusedAlias(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"openai"}}
+	store.state.Connected = true
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+	store.state.Mode = domain.SelectionModeManual
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	entry, err := service.SetFirewallTargetService(context.Background(), "media-kit", []string{"youtube.com", "googlevideo.com"})
+	if err != nil {
+		t.Fatalf("set unused firewall target service: %v", err)
+	}
+
+	if entry.Name != "media-kit" || entry.Source != domain.FirewallTargetServiceSourceCustom || entry.ReadOnly {
+		t.Fatalf("unexpected target service entry: %+v", entry)
+	}
+	if len(runtimeBackend.requests) != 0 {
+		t.Fatalf("expected no backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	if len(firewall.applied) != 0 {
+		t.Fatalf("expected no firewall apply, got %d", len(firewall.applied))
+	}
+}
+
+func TestDeleteFirewallTargetServiceRejectsUsedAlias(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"openai"}}
+	store.settings.Firewall.TargetServiceCatalog = map[string]domain.FirewallTargetDefinition{
+		"openai": {Domains: []string{"openai.com"}},
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	err := service.DeleteFirewallTargetService(context.Background(), "openai")
+	if err == nil {
+		t.Fatal("expected delete to fail while alias is in use")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "remove it from firewall targets first") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDeleteFirewallTargetServiceSkipsReapplyForUnusedAlias(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"openai"}}
+	store.settings.Firewall.TargetServiceCatalog = map[string]domain.FirewallTargetDefinition{
+		"openai":    {Domains: []string{"openai.com"}},
+		"media-kit": {Domains: []string{"youtube.com", "googlevideo.com"}},
+	}
+	store.state.Connected = true
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+	store.state.Mode = domain.SelectionModeManual
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.DeleteFirewallTargetService(context.Background(), "media-kit"); err != nil {
+		t.Fatalf("delete unused firewall target service: %v", err)
+	}
+	if len(runtimeBackend.requests) != 0 {
+		t.Fatalf("expected no backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	if len(firewall.applied) != 0 {
+		t.Fatalf("expected no firewall apply, got %d", len(firewall.applied))
+	}
+}
+
+func TestDeleteFirewallTargetServiceRejectsReferencedCompositeAlias(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.TargetServiceCatalog = map[string]domain.FirewallTargetDefinition{
+		"openai": {Domains: []string{"openai.com"}},
+		"daily":  {Services: []string{"openai"}},
+	}
+	store.settings.Firewall.ModeDrafts.Targets = domain.FirewallModeDraft{
+		TargetServices: []string{"daily"},
+	}
+
+	service := NewService(Dependencies{Store: store, Firewaller: &recordingFirewaller{}})
+
+	err := service.DeleteFirewallTargetService(context.Background(), "openai")
+	if err == nil {
+		t.Fatal("expected delete to fail while alias is referenced by composite bundle")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "referenced") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAddSubscriptionRetriesTransientHTTPStatus(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts == 1 {
+			http.Error(w, "temporary upstream error", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL:  server.URL,
+		Name: "Retry Test",
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if attempts != 2 {
+		t.Fatalf("expected 2 fetch attempts, got %d", attempts)
+	}
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub.Nodes))
+	}
+}
+
+func TestAddSubscriptionUsesCompatibleUserAgent(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.UserAgent() == "" || r.UserAgent() == "Go-http-client/1.1" {
+			http.Error(w, "blocked user agent", http.StatusServiceUnavailable)
+			return
+		}
+
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL:  server.URL,
+		Name: "UA Test",
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub.Nodes))
+	}
+}
+
+func TestAddSubscriptionRetriesWithCookieJar(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if _, err := r.Cookie("routeflux-clearance"); err != nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:  "routeflux-clearance",
+				Value: "ok",
+				Path:  "/",
+			})
+			http.Error(w, "temporary upstream error", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL:  server.URL,
+		Name: "Cookie Test",
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if attempts != 2 {
+		t.Fatalf("expected 2 fetch attempts, got %d", attempts)
+	}
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub.Nodes))
+	}
+}
+
+func TestAddSubscriptionUsesProfileTitleHeaderForProviderName(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.DisplayName != "Demo VPN" {
+		t.Fatalf("unexpected display name: %q", sub.DisplayName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceHeader {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+	if len(sub.Nodes) != 1 || sub.Nodes[0].ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected parsed nodes: %+v", sub.Nodes)
+	}
+}
+
+func TestAddSubscriptionReadsExpirationFromSubscriptionUserinfo(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	expireAt := time.Unix(1799312400, 0).UTC()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if sub.ExpiresAt == nil || !sub.ExpiresAt.Equal(expireAt) {
+		t.Fatalf("unexpected expiration date: got %v want %s", sub.ExpiresAt, expireAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 11606312440, 322122547200)
+}
+
+func TestAddSubscriptionIgnoresDDoSGuardCookieExpiry(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "ddos-guard")
+		w.Header().Add("Set-Cookie", "__ddg8_=short; Expires=Wed, 01-Apr-2026 20:14:25 GMT; Path=/")
+		w.Header().Add("Set-Cookie", "__ddg1_=long; Expires=Thu, 01-Apr-2027 19:55:03 GMT; HttpOnly; Path=/")
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=0; total=0; expire=0")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if sub.ExpiresAt != nil {
+		t.Fatalf("expected DDoS-Guard cookies to be ignored, got %v", sub.ExpiresAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 0, 0)
+}
+
+func TestAddSubscriptionFallsBackToCurlUserAgentForMetadata(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	expireAt := time.Unix(1799312400, 0).UTC()
+	var userAgents []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgents = append(userAgents, r.Header.Get("User-Agent"))
+		if strings.Contains(r.Header.Get("User-Agent"), "curl/") {
+			w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+			w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		}
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceHeader {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+	if sub.ExpiresAt == nil || !sub.ExpiresAt.Equal(expireAt) {
+		t.Fatalf("unexpected expiration date: got %v want %s", sub.ExpiresAt, expireAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 11606312440, 322122547200)
+	if len(userAgents) != 2 {
+		t.Fatalf("expected two metadata fetch attempts, got %d", len(userAgents))
+	}
+	if userAgents[0] != subscriptionFetchUserAgent {
+		t.Fatalf("unexpected primary user agent: %q", userAgents[0])
+	}
+	if userAgents[1] != subscriptionMetadataFallbackUserAgent {
+		t.Fatalf("unexpected fallback user agent: %q", userAgents[1])
+	}
+}
+
+func TestAddSubscriptionKeepsManualProviderNameDespiteProfileTitle(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=reality&sni=edge.example.com&fp=chrome&pbk=public-key-1&sid=ab12cd34&type=ws&path=%2Fproxy&host=cdn.example.com#Edge%20Reality")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL:  server.URL,
+		Name: "Manual Name",
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Manual Name" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceManual {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+}
+
+func TestAddSubscriptionKeepsDistinctProfilesForSharedURL(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		switch requests {
+		case 1:
+			writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=tls&sni=edge.example.com&type=ws&path=%2Fone&host=cdn.example.com#Profile%201")
+		default:
+			writeResponse(w, "vless://22222222-2222-2222-2222-222222222222@node2.example.com:443?encryption=none&security=tls&sni=edge.example.com&type=ws&path=%2Ftwo&host=cdn.example.com#Profile%202")
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	first, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add first subscription: %v", err)
+	}
+
+	second, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add second subscription: %v", err)
+	}
+
+	if first.ID == second.ID {
+		t.Fatalf("expected distinct subscription ids, got %q", first.ID)
+	}
+	if len(store.subs) != 2 {
+		t.Fatalf("expected two stored subscriptions, got %d", len(store.subs))
+	}
+	if store.subs[0].ID != first.ID || store.subs[1].ID != second.ID {
+		t.Fatalf("unexpected stored subscriptions: %+v", store.subs)
+	}
+	if len(store.subs[0].Nodes) != 1 || store.subs[0].Nodes[0].SubscriptionID != first.ID {
+		t.Fatalf("unexpected first subscription nodes: %+v", store.subs[0].Nodes)
+	}
+	if len(store.subs[1].Nodes) != 1 || store.subs[1].Nodes[0].SubscriptionID != second.ID {
+		t.Fatalf("unexpected second subscription nodes: %+v", store.subs[1].Nodes)
+	}
+}
+
+func TestAddSubscriptionKeepsDistinctProfilesForSharedURLWrapperLabels(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Profile-Title", "base64:TGliZXJ0eSBWUE4=")
+		switch requests {
+		case 1:
+			writeResponse(w, `{"remarks":"Netherlands","link":"vless://11111111-1111-1111-1111-111111111111@nl.example.com:443?encryption=none&security=tls&sni=nl.example.com&type=ws&path=%2Fa&host=cdn.example.com#Shared-bypass"}`)
+		default:
+			writeResponse(w, `{"remarks":"Netherlands-bypass","link":"vless://11111111-1111-1111-1111-111111111111@nl.example.com:443?encryption=none&security=tls&sni=nl.example.com&type=ws&path=%2Fa&host=cdn.example.com#Shared-bypass"}`)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	first, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add first subscription: %v", err)
+	}
+
+	second, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add second subscription: %v", err)
+	}
+
+	if first.ID == second.ID {
+		t.Fatalf("expected distinct subscription ids, got %q", first.ID)
+	}
+	if len(store.subs) != 2 {
+		t.Fatalf("expected two stored subscriptions, got %d", len(store.subs))
+	}
+	if len(store.subs[0].Nodes) != 1 || len(store.subs[1].Nodes) != 1 {
+		t.Fatalf("expected one node in each subscription, got %+v", store.subs)
+	}
+	if store.subs[0].Nodes[0].Name != "Netherlands" || store.subs[0].Nodes[0].Remark != "Netherlands" {
+		t.Fatalf("expected first wrapper label to be preserved, got %+v", store.subs[0].Nodes[0])
+	}
+	if store.subs[1].Nodes[0].Name != "Netherlands-bypass" || store.subs[1].Nodes[0].Remark != "Netherlands-bypass" {
+		t.Fatalf("expected second wrapper label to be preserved, got %+v", store.subs[1].Nodes[0])
+	}
+	if store.subs[0].Nodes[0].ID == store.subs[1].Nodes[0].ID {
+		t.Fatalf("expected wrapper label override to produce distinct node ids, got %+v", store.subs)
+	}
+}
+
+func TestAddSubscriptionReusesIDForEquivalentSharedURL(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		writeResponse(w, "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=tls&sni=edge.example.com&type=ws&path=%2Fone&host=cdn.example.com#Profile%201")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	first, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add first subscription: %v", err)
+	}
+
+	second, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: server.URL})
+	if err != nil {
+		t.Fatalf("add second subscription: %v", err)
+	}
+
+	if first.ID != second.ID {
+		t.Fatalf("expected equivalent shared URL to reuse id, got %q and %q", first.ID, second.ID)
+	}
+	if len(store.subs) != 1 {
+		t.Fatalf("expected one stored subscription, got %d", len(store.subs))
+	}
+}
+
+func TestAddSubscriptionReturnsJSONEndpointError(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		writeResponse(w, `{"error":"USER_NOT_FOUND","info":"User account does not exist."}`)
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	_, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err == nil {
+		t.Fatal("expected add subscription to fail")
+	}
+	if got := err.Error(); !strings.Contains(got, "USER_NOT_FOUND") || !strings.Contains(got, "User account does not exist.") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAddSubscriptionReturnsHTMLResponseError(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writeResponse(w, "<html><body><h1>Login required</h1><p>Open the provider portal first.</p></body></html>")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	_, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err == nil {
+		t.Fatal("expected add subscription to fail")
+	}
+	if got := err.Error(); !strings.Contains(got, "Login required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAddSubscriptionRetriesTLS12AfterHandshakeTimeout(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	const subscriptionURL = "https://provider.example/sub"
+	const subscriptionBody = "vless://11111111-1111-1111-1111-111111111111@node1.example.com:443?encryption=none&security=tls&sni=edge.example.com&type=ws&path=%2Fone&host=cdn.example.com#Profile%201"
+
+	primaryCalls := 0
+	service := NewService(Dependencies{
+		Store: store,
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				primaryCalls++
+				return nil, &url.Error{
+					Op:  req.Method,
+					URL: req.URL.String(),
+					Err: fmt.Errorf("net/http: TLS handshake timeout"),
+				}
+			}),
+		},
+	})
+
+	fallbackCalls := 0
+	service.subscriptionTLS12Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Status:     "200 OK",
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(subscriptionBody)),
+			}, nil
+		}),
+	}
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{URL: subscriptionURL})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if primaryCalls < 1 {
+		t.Fatalf("expected at least one primary request, got %d", primaryCalls)
+	}
+	if fallbackCalls < 1 {
+		t.Fatalf("expected at least one TLS 1.2 fallback request, got %d", fallbackCalls)
+	}
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected one parsed node, got %d", len(sub.Nodes))
+	}
+	if sub.Nodes[0].Address != "node1.example.com" {
+		t.Fatalf("unexpected parsed node: %+v", sub.Nodes[0])
+	}
+}
+
+func TestAddSubscriptionReturnsDDoSGuardError(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "ddos-guard")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		writeResponse(w, "<html><body><h1>503 Service Unavailable</h1>No server is available to handle this request.</body></html>")
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	_, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err == nil {
+		t.Fatal("expected add subscription to fail")
+	}
+	if got := err.Error(); !strings.Contains(got, "DDoS-Guard") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAddSubscriptionExtractsHTMLShareLinksWithSpacesInRemark(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writeResponse(w, `<html><body><input readonly value="vless://8b922611-af1c-40c9-9af0-80fd0d782084@snl4.linkey8.ru:8443?security=reality&amp;type=tcp&amp;flow=xtls-rprx-vision&amp;sni=www.vk.com&amp;fp=qq&amp;pbk=wDQjzXYVtjdLkEyXpReh973y4rDIDH6kkX-g-MR7xAg&amp;sid=#🇳🇱 Нидерланды"></body></html>`)
+	}))
+	t.Cleanup(server.Close)
+
+	service := NewService(Dependencies{
+		Store:      store,
+		HTTPClient: server.Client(),
+	})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		URL: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub.Nodes))
+	}
+	if sub.Nodes[0].Remark != "🇳🇱 Нидерланды" {
+		t.Fatalf("expected full remark from html share link, got %+v", sub.Nodes[0])
+	}
+	if sub.Nodes[0].Name != sub.Nodes[0].Remark {
+		t.Fatalf("expected name to mirror remark, got %+v", sub.Nodes[0])
+	}
+}
+
+func TestAddSubscriptionAcceptsDirectVLESSJSONConfig(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	sub, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		Raw: `{
+		  "outbounds": [
+		    {
+		      "settings": {
+		        "encryption": "none",
+		        "flow": "xtls-rprx-vision",
+		        "port": 8443,
+		        "address": "hungary-edge.example",
+		        "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+		      },
+		      "protocol": "vless",
+		      "tag": "proxy",
+		      "streamSettings": {
+		        "realitySettings": {
+		          "shortId": "testshort01",
+		          "publicKey": "test-public-key",
+		          "serverName": "gateway.example",
+		          "fingerprint": "random"
+		        },
+		        "security": "reality",
+		        "network": "tcp"
+		      }
+		    }
+		  ],
+		  "remarks": "🇭🇺Венгрия"
+		}`,
+	})
+	if err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub.Nodes))
+	}
+	if sub.Nodes[0].Name != "🇭🇺Венгрия" {
+		t.Fatalf("unexpected node label: %+v", sub.Nodes[0])
+	}
+	if sub.Nodes[0].Address != "hungary-edge.example" || sub.Nodes[0].Port != 8443 {
+		t.Fatalf("unexpected node endpoint: %+v", sub.Nodes[0])
+	}
+}
+
+func TestRefreshSubscriptionUpdatesLegacyURLDerivedProviderNameFromProfileTitle(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	legacyName := deriveProviderName(domain.SourceTypeURL, server.URL)
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: legacyName,
+				DisplayName:  legacyName,
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.DisplayName != "Demo VPN" {
+		t.Fatalf("unexpected display name: %q", sub.DisplayName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceHeader {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+	if len(sub.Nodes) != 1 || sub.Nodes[0].ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected parsed nodes: %+v", sub.Nodes)
+	}
+}
+
+func TestRefreshSubscriptionDoesNotOverrideManualProviderNameWithProfileTitle(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:RGVtbyBWUE4=")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:                 "sub-1",
+				SourceType:         domain.SourceTypeURL,
+				Source:             server.URL,
+				ProviderName:       "Manual Name",
+				DisplayName:        "Manual Name",
+				ProviderNameSource: domain.ProviderNameSourceManual,
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+	client := server.Client()
+	targetURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server url: %v", err)
+	}
+	client.Transport = rewriteURLRoundTripper{
+		base:   client.Transport,
+		target: targetURL,
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: client})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Manual Name" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.DisplayName != "Manual Name" {
+		t.Fatalf("unexpected display name: %q", sub.DisplayName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceManual {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+	if len(sub.Nodes) != 1 || sub.Nodes[0].ProviderName != "Manual Name" {
+		t.Fatalf("unexpected parsed nodes: %+v", sub.Nodes)
+	}
+}
+
+func TestRefreshSubscriptionUpdatesExpirationFromSubscriptionUserinfo(t *testing.T) {
+	t.Parallel()
+
+	expireAt := time.Unix(1799312400, 0).UTC()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: "Demo VPN",
+				DisplayName:  "Demo VPN",
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ExpiresAt == nil || !sub.ExpiresAt.Equal(expireAt) {
+		t.Fatalf("unexpected expiration date: got %v want %s", sub.ExpiresAt, expireAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 11606312440, 322122547200)
+}
+
+func TestRefreshSubscriptionKeepsExistingExpiryWhenOnlyDDoSGuardCookieIsPresent(t *testing.T) {
+	t.Parallel()
+
+	expiresAt := time.Date(2027, time.March, 25, 10, 0, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "ddos-guard")
+		w.Header().Add("Set-Cookie", "__ddg8_=short; Expires=Wed, 01-Apr-2026 20:14:25 GMT; Path=/")
+		w.Header().Add("Set-Cookie", "__ddg1_=long; Expires=Thu, 01-Apr-2027 19:55:03 GMT; HttpOnly; Path=/")
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=0; total=0; expire=0")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: "Demo VPN",
+				DisplayName:  "Demo VPN",
+				ExpiresAt:    &expiresAt,
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ExpiresAt == nil || !sub.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("unexpected expiration date: got %v want %s", sub.ExpiresAt, expiresAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 0, 0)
+}
+
+func TestRefreshSubscriptionClearsExpiredStaleExpiryWhenProviderOmitsIt(t *testing.T) {
+	t.Parallel()
+
+	expiredAt := time.Date(2026, time.April, 5, 10, 0, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=0; total=0; expire=0")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: "Demo VPN",
+				DisplayName:  "Demo VPN",
+				ExpiresAt:    &expiredAt,
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ExpiresAt != nil {
+		t.Fatalf("expected stale expired date to be cleared, got %v", sub.ExpiresAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 0, 0)
+}
+
+func TestRefreshSubscriptionFallsBackToCurlUserAgentForMetadata(t *testing.T) {
+	t.Parallel()
+
+	expireAt := time.Unix(1799312400, 0).UTC()
+	var userAgents []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgents = append(userAgents, r.Header.Get("User-Agent"))
+		if strings.Contains(r.Header.Get("User-Agent"), "curl/") {
+			w.Header().Set("Subscription-Userinfo", "upload=0; download=11606312440; total=322122547200; expire=1799312400")
+		}
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: "Demo VPN",
+				DisplayName:  "Demo VPN",
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ExpiresAt == nil || !sub.ExpiresAt.Equal(expireAt) {
+		t.Fatalf("unexpected expiration date: got %v want %s", sub.ExpiresAt, expireAt)
+	}
+	assertSubscriptionTraffic(t, sub, 0, 11606312440, 322122547200)
+	if len(userAgents) != 2 {
+		t.Fatalf("expected two metadata fetch attempts, got %d", len(userAgents))
+	}
+	if userAgents[0] != subscriptionFetchUserAgent {
+		t.Fatalf("unexpected primary user agent: %q", userAgents[0])
+	}
+	if userAgents[1] != subscriptionMetadataFallbackUserAgent {
+		t.Fatalf("unexpected fallback user agent: %q", userAgents[1])
+	}
+}
+
+func TestRefreshSubscriptionUpgradesLegacyKeyVPNNameFromProfileTitle(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Profile-Title", "base64:REVNTyBWUE4=")
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       "https://key.vpndemo.example/subscriptions/demo-token",
+				ProviderName: "Key VPN",
+				DisplayName:  "Key VPN",
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+	if !canUpgradeLegacyProviderName(store.subs[0], "Key VPN") {
+		t.Fatal("expected Key VPN legacy name to be upgradeable")
+	}
+
+	client := server.Client()
+	targetURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server url: %v", err)
+	}
+	client.Transport = rewriteURLRoundTripper{
+		base:   client.Transport,
+		target: targetURL,
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: client})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ProviderName != "DEMO VPN" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.DisplayName != "DEMO VPN" {
+		t.Fatalf("unexpected display name: %q", sub.DisplayName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceHeader {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+}
+
+func TestRefreshSubscriptionNormalizesLegacyRawHostNameWithoutProfileTitle(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeResponse(w, `[
+		  {
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`)
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       "https://key.vpndemo.example/subscriptions/demo-token",
+				ProviderName: "key.vpndemo.example",
+				DisplayName:  "key.vpndemo.example",
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+	if !canUpgradeLegacyProviderName(store.subs[0], "key.vpndemo.example") {
+		t.Fatal("expected raw legacy host name to be upgradeable")
+	}
+
+	client := server.Client()
+	targetURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server url: %v", err)
+	}
+	client.Transport = rewriteURLRoundTripper{
+		base:   client.Transport,
+		target: targetURL,
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: client})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ProviderName != "Demo VPN" {
+		t.Fatalf("unexpected provider name: %q", sub.ProviderName)
+	}
+	if sub.DisplayName != "Demo VPN" {
+		t.Fatalf("unexpected display name: %q", sub.DisplayName)
+	}
+	if sub.ProviderNameSource != domain.ProviderNameSourceURL {
+		t.Fatalf("unexpected provider name source: %q", sub.ProviderNameSource)
+	}
+}
+
+func TestConfigureFirewallHostsCanonicalizesAllAlias(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.ConfigureFirewallHosts(context.Background(), []string{"*", "192.168.1.150"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall hosts: %v", err)
+	}
+
+	if len(settings.Hosts) != 1 || settings.Hosts[0] != "all" {
+		t.Fatalf("unexpected source hosts: %v", settings.Hosts)
+	}
+	if len(store.settings.Firewall.Hosts) != 1 || store.settings.Firewall.Hosts[0] != "all" {
+		t.Fatalf("unexpected persisted source hosts: %v", store.settings.Firewall.Hosts)
+	}
+}
+
+func TestConfigureFirewallHostsPreservesBlockQUICSetting(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.Firewall.BlockQUIC = false
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.ConfigureFirewallHosts(context.Background(), []string{"192.168.1.150"}, true, 23456)
+	if err != nil {
+		t.Fatalf("configure firewall hosts: %v", err)
+	}
+
+	if settings.BlockQUIC {
+		t.Fatal("expected block-quic to remain false")
+	}
+}
+
+func TestConnectManualAppliesHostFirewallRouting(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+	store.settings.Firewall.TransparentPort = 12345
+	store.settings.Firewall.BlockQUIC = true
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if !runtimeBackend.requests[0].TransparentProxy {
+		t.Fatal("expected transparent proxy to be enabled")
+	}
+	if !runtimeBackend.requests[0].TransparentBlockQUIC {
+		t.Fatal("expected transparent QUIC blocking to be forwarded to backend")
+	}
+
+	if len(firewall.applied) != 1 {
+		t.Fatalf("expected firewall rules to be applied once, got %d", len(firewall.applied))
+	}
+	if len(firewall.applied[0].Hosts) != 1 || firewall.applied[0].Hosts[0] != "192.168.1.150" {
+		t.Fatalf("unexpected applied source hosts: %v", firewall.applied[0].Hosts)
+	}
+}
+
+func TestConnectManualAutoBlocksQUICForVLESSRealityTCPNodes(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:         "node-1",
+						Name:       "Germany",
+						Protocol:   domain.ProtocolVLESS,
+						Address:    "de.example.com",
+						Port:       443,
+						UUID:       "11111111-1111-1111-1111-111111111111",
+						Security:   "reality",
+						Transport:  "tcp",
+						Flow:       "xtls-rprx-vision",
+						ServerName: "www.google.com",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+	store.settings.Firewall.TransparentPort = 12345
+	store.settings.Firewall.BlockQUIC = false
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if !runtimeBackend.requests[0].TransparentBlockQUIC {
+		t.Fatal("expected incompatible node to force transparent QUIC blocking")
+	}
+	if len(firewall.applied) != 1 {
+		t.Fatalf("expected firewall rules to be applied once, got %d", len(firewall.applied))
+	}
+	if !firewall.applied[0].BlockQUIC {
+		t.Fatal("expected firewall rules to receive the effective transparent QUIC policy")
+	}
+}
+
+func TestConnectManualFailsWhenBackendEgressProbeFailsAndDisablesFirewall(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+	service.backendEgressProbe = func(context.Context) error {
+		return errors.New("egress probe failed")
+	}
+	service.backendEgressTimeout = 5 * time.Millisecond
+	service.backendEgressRetryDelay = time.Millisecond
+
+	err := service.ConnectManual(context.Background(), "sub-1", "node-1")
+	if err == nil {
+		t.Fatal("expected connect manual to fail")
+	}
+	if !strings.Contains(err.Error(), "check backend egress") {
+		t.Fatalf("expected backend egress failure, got %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if len(firewall.applied) != 0 {
+		t.Fatalf("expected no firewall apply after failed egress probe, got %d", len(firewall.applied))
+	}
+	if firewall.disableCalls != 1 {
+		t.Fatalf("expected firewall disable once after failed egress probe, got %d", firewall.disableCalls)
+	}
+	if store.state.Connected {
+		t.Fatal("expected runtime state to remain disconnected after failed egress probe")
+	}
+	if !strings.Contains(store.state.LastFailureReason, "egress probe failed") {
+		t.Fatalf("expected failure reason to include probe error, got %q", store.state.LastFailureReason)
+	}
+}
+
+func TestConnectManualRetriesBackendEgressProbeBeforeApplyingFirewall(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+	service.backendEgressTimeout = 50 * time.Millisecond
+	service.backendEgressRetryDelay = time.Millisecond
+
+	attempts := 0
+	service.backendEgressProbe = func(context.Context) error {
+		attempts++
+		if attempts < 3 {
+			return errors.New("proxy not ready yet")
+		}
+		return nil
+	}
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 egress probe attempts, got %d", attempts)
+	}
+	if len(firewall.applied) != 1 {
+		t.Fatalf("expected firewall apply after probe recovery, got %d", len(firewall.applied))
+	}
+	if !store.state.Connected {
+		t.Fatal("expected runtime state to be connected after probe recovery")
+	}
+}
+
+func TestConnectManualContinuesWhenBackendEgressProbeSucceeds(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeHosts
+	store.settings.Firewall.Hosts = []string{"192.168.1.150"}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+	service.backendEgressProbe = func(context.Context) error { return nil }
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(firewall.applied) != 1 {
+		t.Fatalf("expected firewall rules to be applied once, got %d", len(firewall.applied))
+	}
+	if firewall.disableCalls != 0 {
+		t.Fatalf("expected firewall disable to stay unused on successful egress probe, got %d", firewall.disableCalls)
+	}
+	if !store.state.Connected {
+		t.Fatal("expected runtime state to stay connected after successful egress probe")
+	}
+}
+
+func TestConnectManualPassesExpandedTargetSelectorsToBackend(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeTargets
+	store.settings.Firewall.Targets = domain.FirewallSelectorSet{Services: []string{"youtube", "telegram"}}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+
+	wantDomains := []string{
+		"youtube.com",
+		"youtu.be",
+		"youtube-nocookie.com",
+		"youtubei.googleapis.com",
+		"youtube.googleapis.com",
+		"googlevideo.com",
+		"ytimg.com",
+		"ggpht.com",
+		"telegram.org",
+		"t.me",
+		"telegram.me",
+		"web.telegram.org",
+		"desktop.telegram.org",
+		"core.telegram.org",
+	}
+	if !reflect.DeepEqual(runtimeBackend.requests[0].TransparentProxyDomains, wantDomains) {
+		t.Fatalf("unexpected transparent target domains:\nwant: %+v\n got: %+v", wantDomains, runtimeBackend.requests[0].TransparentProxyDomains)
+	}
+
+	wantCIDRs := []string{
+		"91.108.0.0/16",
+		"149.154.0.0/16",
+	}
+	if !reflect.DeepEqual(runtimeBackend.requests[0].TransparentProxyCIDRs, wantCIDRs) {
+		t.Fatalf("unexpected transparent target cidrs:\nwant: %+v\n got: %+v", wantCIDRs, runtimeBackend.requests[0].TransparentProxyCIDRs)
+	}
+	if !runtimeBackend.requests[0].TransparentSelectiveCapture {
+		t.Fatal("expected targets mode to use selective transparent capture")
+	}
+}
+
+func TestConnectManualPassesExpandedAntiTargetSelectorsToBackend(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeSplit
+	store.settings.Firewall.Split = domain.FirewallSplitSettings{
+		Bypass:        domain.FirewallSelectorSet{Services: []string{"youtube", "telegram"}},
+		DefaultAction: domain.FirewallDefaultActionProxy,
+	}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if runtimeBackend.requests[0].TransparentDefaultAction != domain.FirewallDefaultActionProxy {
+		t.Fatalf("unexpected transparent default action: %q", runtimeBackend.requests[0].TransparentDefaultAction)
+	}
+
+	wantDomains := []string{
+		"youtube.com",
+		"youtu.be",
+		"youtube-nocookie.com",
+		"youtubei.googleapis.com",
+		"youtube.googleapis.com",
+		"googlevideo.com",
+		"ytimg.com",
+		"ggpht.com",
+		"telegram.org",
+		"t.me",
+		"telegram.me",
+		"web.telegram.org",
+		"desktop.telegram.org",
+		"core.telegram.org",
+	}
+	if !reflect.DeepEqual(runtimeBackend.requests[0].TransparentBypassDomains, wantDomains) {
+		t.Fatalf("unexpected transparent target domains:\nwant: %+v\n got: %+v", wantDomains, runtimeBackend.requests[0].TransparentBypassDomains)
+	}
+
+	wantCIDRs := []string{
+		"91.108.0.0/16",
+		"149.154.0.0/16",
+	}
+	if !reflect.DeepEqual(runtimeBackend.requests[0].TransparentBypassCIDRs, wantCIDRs) {
+		t.Fatalf("unexpected transparent target cidrs:\nwant: %+v\n got: %+v", wantCIDRs, runtimeBackend.requests[0].TransparentBypassCIDRs)
+	}
+	if runtimeBackend.requests[0].TransparentSelectiveCapture {
+		t.Fatal("expected anti-target compatibility mode to keep capture-all semantics")
+	}
+}
+
+func TestConnectManualPassesSelectiveCaptureForSplitDirect(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.Firewall.Enabled = true
+	store.settings.Firewall.Mode = domain.FirewallModeSplit
+	store.settings.Firewall.Split = domain.FirewallSplitSettings{
+		Proxy:         domain.FirewallSelectorSet{Services: []string{"youtube"}},
+		Bypass:        domain.FirewallSelectorSet{Domains: []string{"gosuslugi.ru"}},
+		DefaultAction: domain.FirewallDefaultActionDirect,
+	}
+	store.settings.Firewall.TransparentPort = 12345
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if !runtimeBackend.requests[0].TransparentSelectiveCapture {
+		t.Fatal("expected split direct mode to use selective transparent capture")
+	}
+}
+
+func TestGetSettingsSyncsConnectedRuntimeMode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	store.settings.AutoMode = true
+	store.settings.Mode = domain.SelectionModeAuto
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.GetSettings()
+	if err != nil {
+		t.Fatalf("get settings: %v", err)
+	}
+
+	if settings.AutoMode {
+		t.Fatal("expected auto-mode to be false when runtime state is manual")
+	}
+	if settings.Mode != domain.SelectionModeManual {
+		t.Fatalf("unexpected settings mode: %s", settings.Mode)
+	}
+	if store.settings.AutoMode {
+		t.Fatal("expected persisted settings to be synced to runtime state")
+	}
+}
+
+func TestConnectManualResolvesNodeAddressBeforeApplyingBackendConfig(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Russia",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "ru-sb-01.com",
+						Port:     8443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+		Resolver: fakeResolver{
+			lookups: map[string][]net.IPAddr{
+				"ru-sb-01.com": {
+					{IP: net.ParseIP("103.113.68.112")},
+				},
+			},
+		},
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if got := runtimeBackend.requests[0].Nodes[0].Address; got != "103.113.68.112" {
+		t.Fatalf("expected resolved backend address, got %q", got)
+	}
+	if got := store.subs[0].Nodes[0].Address; got != "ru-sb-01.com" {
+		t.Fatalf("expected stored node address to remain unchanged, got %q", got)
+	}
+}
+
+func TestConnectManualPrefersReachableResolvedIPv4Address(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Lithuania",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "lt-cherry-01.com",
+						Port:     8443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+		Resolver: fakeResolver{
+			lookups: map[string][]net.IPAddr{
+				"lt-cherry-01.com": {
+					{IP: net.ParseIP("5.199.169.84")},
+					{IP: net.ParseIP("185.150.118.87")},
+				},
+			},
+		},
+	})
+
+	var dialAttempts []string
+	service.nodeDialProbeTimeout = time.Second
+	service.dialContext = func(_ context.Context, network, address string) (net.Conn, error) {
+		dialAttempts = append(dialAttempts, network+" "+address)
+		if address == "5.199.169.84:8443" {
+			return nil, fmt.Errorf("connection refused")
+		}
+		left, right := net.Pipe()
+		_ = right.Close()
+		return left, nil
+	}
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if got := runtimeBackend.requests[0].Nodes[0].Address; got != "185.150.118.87" {
+		t.Fatalf("expected reachable resolved backend address, got %q", got)
+	}
+	wantAttempts := []string{
+		"tcp 5.199.169.84:8443",
+		"tcp 185.150.118.87:8443",
+	}
+	if !reflect.DeepEqual(dialAttempts, wantAttempts) {
+		t.Fatalf("unexpected dial attempts: got %+v want %+v", dialAttempts, wantAttempts)
+	}
+}
+
+func TestConnectManualFallsBackToFirstResolvedIPv4WhenAllProbesFail(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de-dp-01.com",
+						Port:     8443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+		Resolver: fakeResolver{
+			lookups: map[string][]net.IPAddr{
+				"de-dp-01.com": {
+					{IP: net.ParseIP("195.181.175.155")},
+					{IP: net.ParseIP("195.181.175.159")},
+				},
+			},
+		},
+	})
+
+	service.nodeDialProbeTimeout = time.Second
+	service.dialContext = func(_ context.Context, _, address string) (net.Conn, error) {
+		return nil, fmt.Errorf("dial %s: timeout", address)
+	}
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend apply, got %d", len(runtimeBackend.requests))
+	}
+	if got := runtimeBackend.requests[0].Nodes[0].Address; got != "195.181.175.155" {
+		t.Fatalf("expected first resolved backend address fallback, got %q", got)
+	}
+}
+
+func TestRuntimeStatusReturnsBackendStatus(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	backend := &recordingBackend{
+		status: backend.RuntimeStatus{
+			Running:      true,
+			ConfigPath:   "/etc/xray/config.json",
+			ServiceState: "running",
+		},
+	}
+
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: backend,
+	})
+
+	status, err := service.RuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("runtime status: %v", err)
+	}
+
+	if !status.Running || status.ServiceState != "running" || status.ConfigPath != "/etc/xray/config.json" {
+		t.Fatalf("unexpected runtime status: %+v", status)
+	}
+}
+
+func TestRuntimeStatusWithoutBackendReturnsZeroValue(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	status, err := service.RuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("runtime status without backend: %v", err)
+	}
+
+	if status != (backend.RuntimeStatus{}) {
+		t.Fatalf("expected zero runtime status, got %+v", status)
+	}
+}
+
+func TestSetSettingAutoModeTrueSwitchesCurrentConnection(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{ID: "node-1", Name: "Slow", Protocol: domain.ProtocolVLESS, Address: "slow.example.com", Port: 443, UUID: "11111111-1111-1111-1111-111111111111"},
+					{ID: "node-2", Name: "Fast", Protocol: domain.ProtocolVLESS, Address: "fast.example.com", Port: 443, UUID: "22222222-2222-2222-2222-222222222222"},
+				},
+			},
+		},
+	}
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+
+	service := NewService(Dependencies{
+		Store: store,
+		Checker: fakeChecker{results: map[string]probe.Result{
+			"node-1": {NodeID: "node-1", Healthy: true, Latency: 150 * time.Millisecond, Checked: time.Now().UTC()},
+			"node-2": {NodeID: "node-2", Healthy: true, Latency: 20 * time.Millisecond, Checked: time.Now().UTC()},
+		}},
+	})
+
+	settings, err := service.SetSetting("auto-mode", "true")
+	if err != nil {
+		t.Fatalf("set auto-mode true: %v", err)
+	}
+
+	if !settings.AutoMode || settings.Mode != domain.SelectionModeAuto {
+		t.Fatalf("unexpected settings after enabling auto: %+v", settings)
+	}
+	if store.state.Mode != domain.SelectionModeAuto {
+		t.Fatalf("expected runtime state mode auto, got %s", store.state.Mode)
+	}
+	if store.state.ActiveNodeID != "node-2" {
+		t.Fatalf("expected best node to be selected, got %s", store.state.ActiveNodeID)
+	}
+}
+
+func TestSetSettingAutoModeTrueKeepsCurrentNodeButUpdatesMode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{ID: "node-1", Name: "Current", Protocol: domain.ProtocolVLESS, Address: "current.example.com", Port: 443, UUID: "11111111-1111-1111-1111-111111111111"},
+					{ID: "node-2", Name: "Slightly Better", Protocol: domain.ProtocolVLESS, Address: "better.example.com", Port: 443, UUID: "22222222-2222-2222-2222-222222222222"},
+				},
+			},
+		},
+	}
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+
+	service := NewService(Dependencies{
+		Store: store,
+		Checker: fakeChecker{results: map[string]probe.Result{
+			"node-1": {NodeID: "node-1", Healthy: true, Latency: 100 * time.Millisecond, Checked: time.Now().UTC()},
+			"node-2": {NodeID: "node-2", Healthy: true, Latency: 70 * time.Millisecond, Checked: time.Now().UTC()},
+		}},
+	})
+
+	settings, err := service.SetSetting("auto-mode", "true")
+	if err != nil {
+		t.Fatalf("set auto-mode true: %v", err)
+	}
+
+	if !settings.AutoMode || settings.Mode != domain.SelectionModeAuto {
+		t.Fatalf("unexpected settings after enabling auto: %+v", settings)
+	}
+	if store.state.Mode != domain.SelectionModeAuto {
+		t.Fatalf("expected runtime state mode auto, got %s", store.state.Mode)
+	}
+	if store.state.ActiveNodeID != "node-1" {
+		t.Fatalf("expected current node to remain selected, got %s", store.state.ActiveNodeID)
+	}
+}
+
+func TestSetSettingAutoModeFalsePinsCurrentNode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{ID: "node-2", Name: "Fast", Protocol: domain.ProtocolVLESS, Address: "fast.example.com", Port: 443, UUID: "22222222-2222-2222-2222-222222222222"},
+				},
+			},
+		},
+	}
+	store.settings.AutoMode = true
+	store.settings.Mode = domain.SelectionModeAuto
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeAuto
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-2"
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.SetSetting("auto-mode", "false")
+	if err != nil {
+		t.Fatalf("set auto-mode false: %v", err)
+	}
+
+	if settings.AutoMode {
+		t.Fatal("expected auto-mode to be disabled")
+	}
+	if settings.Mode != domain.SelectionModeManual {
+		t.Fatalf("expected settings mode manual, got %s", settings.Mode)
+	}
+	if store.state.Mode != domain.SelectionModeManual {
+		t.Fatalf("expected runtime state mode manual, got %s", store.state.Mode)
+	}
+	if store.state.ActiveNodeID != "node-2" {
+		t.Fatalf("expected current node to stay pinned, got %s", store.state.ActiveNodeID)
+	}
+}
+
+func TestConnectAutoSkipsExcludedNodes(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{ID: "node-1", Name: "Slow", Protocol: domain.ProtocolVLESS, Address: "slow.example.com", Port: 443, UUID: "11111111-1111-1111-1111-111111111111"},
+					{ID: "node-2", Name: "Fast", Protocol: domain.ProtocolVLESS, Address: "fast.example.com", Port: 443, UUID: "22222222-2222-2222-2222-222222222222"},
+				},
+			},
+		},
+	}
+	store.settings.AutoExcludedNodes = []string{"sub-1/node-2"}
+
+	service := NewService(Dependencies{
+		Store: store,
+		Checker: fakeChecker{results: map[string]probe.Result{
+			"node-1": {NodeID: "node-1", Healthy: true, Latency: 150 * time.Millisecond, Checked: time.Now().UTC()},
+			"node-2": {NodeID: "node-2", Healthy: true, Latency: 20 * time.Millisecond, Checked: time.Now().UTC()},
+		}},
+	})
+
+	selected, err := service.ConnectAuto(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("connect auto: %v", err)
+	}
+
+	if selected.ID != "node-1" {
+		t.Fatalf("expected non-excluded node to be selected, got %s", selected.ID)
+	}
+}
+
+func TestSetSettingAutoExcludedNodesReconnectsAutoSelection(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state: domain.RuntimeState{
+			Connected:            true,
+			Mode:                 domain.SelectionModeAuto,
+			ActiveSubscriptionID: "sub-1",
+			ActiveNodeID:         "node-2",
+			Health:               map[string]domain.NodeHealth{},
+		},
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{ID: "node-1", Name: "Slow", Protocol: domain.ProtocolVLESS, Address: "slow.example.com", Port: 443, UUID: "11111111-1111-1111-1111-111111111111"},
+					{ID: "node-2", Name: "Fast", Protocol: domain.ProtocolVLESS, Address: "fast.example.com", Port: 443, UUID: "22222222-2222-2222-2222-222222222222"},
+				},
+			},
+		},
+	}
+	store.settings.AutoMode = true
+	store.settings.Mode = domain.SelectionModeAuto
+
+	service := NewService(Dependencies{
+		Store: store,
+		Checker: fakeChecker{results: map[string]probe.Result{
+			"node-1": {NodeID: "node-1", Healthy: true, Latency: 80 * time.Millisecond, Checked: time.Now().UTC()},
+			"node-2": {NodeID: "node-2", Healthy: true, Latency: 10 * time.Millisecond, Checked: time.Now().UTC()},
+		}},
+	})
+
+	settings, err := service.SetSetting("auto.excluded-nodes", "sub-1/node-2")
+	if err != nil {
+		t.Fatalf("set auto excluded nodes: %v", err)
+	}
+
+	if want := []string{"sub-1/node-2"}; !reflect.DeepEqual(settings.AutoExcludedNodes, want) {
+		t.Fatalf("unexpected excluded nodes: %+v", settings.AutoExcludedNodes)
+	}
+	if store.state.ActiveNodeID != "node-1" {
+		t.Fatalf("expected auto mode to reconnect away from excluded node, got %s", store.state.ActiveNodeID)
+	}
+}
+
+func TestSetSettingRefreshIntervalUpdatesStoredSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{ID: "sub-1", RefreshInterval: domain.NewDuration(time.Hour)},
+			{ID: "sub-2", RefreshInterval: domain.NewDuration(2 * time.Hour)},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.SetSetting("refresh-interval", "30m")
+	if err != nil {
+		t.Fatalf("set refresh interval: %v", err)
+	}
+
+	if got := settings.RefreshInterval.Duration(); got != 30*time.Minute {
+		t.Fatalf("unexpected settings refresh interval: %s", got)
+	}
+	for _, sub := range store.subs {
+		if got := sub.RefreshInterval.Duration(); got != 30*time.Minute {
+			t.Fatalf("expected propagated refresh interval for %s, got %s", sub.ID, got)
+		}
+	}
+}
+
+func TestSetSettingHWID(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store, Logger: slog.Default()})
+
+	settings, err := service.SetSetting("hwid", "abc-123-def")
+	if err != nil {
+		t.Fatalf("set hwid: %v", err)
+	}
+	if settings.HWID != "abc-123-def" {
+		t.Fatalf("unexpected hwid: got %q, want %q", settings.HWID, "abc-123-def")
+	}
+
+	settings, err = service.SetSetting("hwid", "  trimmed  ")
+	if err != nil {
+		t.Fatalf("set hwid: %v", err)
+	}
+	if settings.HWID != "trimmed" {
+		t.Fatalf("unexpected hwid after trim: got %q, want %q", settings.HWID, "trimmed")
+	}
+}
+
+func TestHWIDAutoGenerate(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store, Logger: slog.Default()})
+
+	hwID := service.hwID()
+	if hwID == "" {
+		t.Fatal("expected auto-generated hwid to be non-empty")
+	}
+	if len(hwID) != 36 || hwID[8] != '-' || hwID[13] != '-' || hwID[18] != '-' || hwID[23] != '-' {
+		t.Fatalf("unexpected hwid format: %q", hwID)
+	}
+
+	saved, err := store.LoadSettings()
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if saved.HWID != hwID {
+		t.Fatalf("hwid not persisted: got %q, want %q", saved.HWID, hwID)
+	}
+
+	hwID2 := service.hwID()
+	if hwID != hwID2 {
+		t.Fatalf("hwid should be stable: got %q then %q", hwID, hwID2)
+	}
+}
+
+func TestSetSettingDNSFields(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+	service := NewService(Dependencies{Store: store})
+
+	settings, err := service.SetSetting("dns.servers", "dns.google, 1.1.1.1")
+	if err != nil {
+		t.Fatalf("set dns.servers: %v", err)
+	}
+	if len(settings.DNS.Servers) != 2 || settings.DNS.Servers[0] != "dns.google" || settings.DNS.Servers[1] != "1.1.1.1" {
+		t.Fatalf("unexpected dns servers: %+v", settings.DNS.Servers)
+	}
+
+	settings, err = service.SetSetting("dns.bootstrap", "9.9.9.9, 8.8.8.8")
+	if err != nil {
+		t.Fatalf("set dns.bootstrap: %v", err)
+	}
+	if len(settings.DNS.Bootstrap) != 2 || settings.DNS.Bootstrap[0] != "9.9.9.9" || settings.DNS.Bootstrap[1] != "8.8.8.8" {
+		t.Fatalf("unexpected dns bootstrap: %+v", settings.DNS.Bootstrap)
+	}
+
+	settings, err = service.SetSetting("dns.domains", "domain:lan, full:router.lan")
+	if err != nil {
+		t.Fatalf("set dns.domains: %v", err)
+	}
+	if len(settings.DNS.DirectDomains) != 2 || settings.DNS.DirectDomains[0] != "domain:lan" || settings.DNS.DirectDomains[1] != "full:router.lan" {
+		t.Fatalf("unexpected dns direct domains: %+v", settings.DNS.DirectDomains)
+	}
+}
+
+func TestSetSettingDNSModeReappliesCurrentConnection(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+	store.settings.DNS.Servers = []string{"dns.google"}
+	store.settings.DNS.Transport = domain.DNSTransportDoH
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+	})
+
+	settings, err := service.SetSetting("dns.mode", string(domain.DNSModeSplit))
+	if err != nil {
+		t.Fatalf("set dns.mode: %v", err)
+	}
+
+	if settings.DNS.Mode != domain.DNSModeSplit {
+		t.Fatalf("unexpected dns mode: %s", settings.DNS.Mode)
+	}
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	if runtimeBackend.requests[0].DNS.Mode != domain.DNSModeSplit {
+		t.Fatalf("unexpected request dns mode: %s", runtimeBackend.requests[0].DNS.Mode)
+	}
+	if runtimeBackend.requests[0].DNS.Transport != domain.DNSTransportDoH {
+		t.Fatalf("unexpected request dns transport: %s", runtimeBackend.requests[0].DNS.Transport)
+	}
+	if len(runtimeBackend.requests[0].DNS.Servers) != 1 || runtimeBackend.requests[0].DNS.Servers[0] != "dns.google" {
+		t.Fatalf("unexpected request dns servers: %+v", runtimeBackend.requests[0].DNS.Servers)
+	}
+}
+
+func TestApplyDefaultDNSReappliesCurrentConnection(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.settings.DNS.Mode = domain.DNSModeSystem
+	store.settings.DNS.Transport = domain.DNSTransportPlain
+	store.settings.DNS.Servers = nil
+	store.settings.DNS.Bootstrap = []string{"9.9.9.9"}
+	store.settings.DNS.DirectDomains = nil
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+	})
+
+	settings, err := service.ApplyDefaultDNS(context.Background())
+	if err != nil {
+		t.Fatalf("apply default dns: %v", err)
+	}
+
+	want := domain.DefaultDNSSettings()
+	if settings.DNS.Mode != want.Mode || settings.DNS.Transport != want.Transport {
+		t.Fatalf("unexpected default dns: %+v", settings.DNS)
+	}
+	if len(settings.DNS.Servers) != len(want.Servers) || settings.DNS.Servers[0] != want.Servers[0] || settings.DNS.Servers[1] != want.Servers[1] {
+		t.Fatalf("unexpected default dns servers: %+v", settings.DNS.Servers)
+	}
+	if len(settings.DNS.DirectDomains) != len(want.DirectDomains) {
+		t.Fatalf("unexpected default direct domains: %+v", settings.DNS.DirectDomains)
+	}
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	if runtimeBackend.requests[0].DNS.Mode != want.Mode || runtimeBackend.requests[0].DNS.Transport != want.Transport {
+		t.Fatalf("unexpected request dns: %+v", runtimeBackend.requests[0].DNS)
+	}
+}
+
+func TestUpdateDNSReappliesCurrentConnectionOnce(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	store.state.Connected = true
+	store.state.Mode = domain.SelectionModeManual
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+
+	runtimeBackend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: runtimeBackend,
+	})
+
+	updated, err := service.UpdateDNS(context.Background(), domain.DNSSettings{
+		Mode:          domain.DNSModeSplit,
+		Transport:     domain.DNSTransportDoH,
+		Servers:       []string{"1.1.1.1", "1.0.0.1"},
+		Bootstrap:     nil,
+		DirectDomains: []string{"domain:lan", "full:router.lan"},
+	})
+	if err != nil {
+		t.Fatalf("update dns: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend reapply, got %d", len(runtimeBackend.requests))
+	}
+	got := runtimeBackend.requests[0].DNS
+	if got.Mode != domain.DNSModeSplit || got.Transport != domain.DNSTransportDoH {
+		t.Fatalf("unexpected request dns mode/transport: %+v", got)
+	}
+	if len(got.Servers) != 2 || got.Servers[0] != "1.1.1.1" || got.Servers[1] != "1.0.0.1" {
+		t.Fatalf("unexpected request dns servers: %+v", got.Servers)
+	}
+	if len(updated.DNS.DirectDomains) != 2 || updated.DNS.DirectDomains[0] != "domain:lan" || updated.DNS.DirectDomains[1] != "full:router.lan" {
+		t.Fatalf("unexpected stored direct domains: %+v", updated.DNS.DirectDomains)
+	}
+}
+
+func TestConnectManualAppliesLocalDNSRuntime(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	runtimeBackend := &recordingBackend{}
+	dnsManager := &recordingDNSManager{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		DNSManager: dnsManager,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	if len(runtimeBackend.requests) != 1 {
+		t.Fatalf("expected one backend request, got %d", len(runtimeBackend.requests))
+	}
+	req := runtimeBackend.requests[0]
+	if !req.LocalDNSEnabled || req.LocalDNSListen != "127.0.0.1" || req.LocalDNSPort != 1053 {
+		t.Fatalf("unexpected local dns request: %+v", req)
+	}
+	if dnsManager.applyCalls != 1 {
+		t.Fatalf("expected dns manager apply once, got %d", dnsManager.applyCalls)
+	}
+	if dnsManager.lastListen != "127.0.0.1" || dnsManager.lastPort != 1053 {
+		t.Fatalf("unexpected dns runtime endpoint: listen=%q port=%d", dnsManager.lastListen, dnsManager.lastPort)
+	}
+}
+
+func TestDisconnectDisablesDNSBeforeStoppingBackendAndFirewall(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state: domain.RuntimeState{
+			Connected:            true,
+			Mode:                 domain.SelectionModeManual,
+			ActiveSubscriptionID: "sub-1",
+			ActiveNodeID:         "node-1",
+			ActiveTransport:      domain.TransportModeProxy,
+		},
+	}
+	order := []string{}
+	runtimeBackend := &recordingBackend{order: &order}
+	dnsManager := &recordingDNSManager{order: &order}
+	firewall := &recordingFirewaller{order: &order}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		DNSManager: dnsManager,
+		Firewaller: firewall,
+	})
+
+	if err := service.Disconnect(context.Background()); err != nil {
+		t.Fatalf("disconnect: %v", err)
+	}
+
+	if got, want := strings.Join(order, ","), "dns.disable,backend.stop,firewall.disable"; got != want {
+		t.Fatalf("unexpected teardown order: got %q want %q", got, want)
+	}
+}
+
+func TestConnectManualDNSManagerFailureTearsDownRuntime(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Germany",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+	order := []string{}
+	runtimeBackend := &recordingBackend{order: &order}
+	dnsManager := &recordingDNSManager{
+		order:    &order,
+		applyErr: errors.New("dns apply failed"),
+	}
+	firewall := &recordingFirewaller{order: &order}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		DNSManager: dnsManager,
+		Firewaller: firewall,
+	})
+
+	err := service.ConnectManual(context.Background(), "sub-1", "node-1")
+	if err == nil {
+		t.Fatal("expected connect manual to fail")
+	}
+	if !strings.Contains(err.Error(), "apply dns runtime") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if runtimeBackend.stopCalls != 1 {
+		t.Fatalf("expected backend stop on dns failure, got %d", runtimeBackend.stopCalls)
+	}
+	if dnsManager.disableCalls != 1 {
+		t.Fatalf("expected dns manager disable on dns failure, got %d", dnsManager.disableCalls)
+	}
+	if firewall.disableCalls != 1 {
+		t.Fatalf("expected firewall disable on dns failure, got %d", firewall.disableCalls)
+	}
+}
+
+func TestRefreshSubscriptionParsesJSONArrayOfConfigs(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[
+		  {
+		    "remarks": "One",
+		    "outbounds": [
+		      {
+		        "protocol": "vless",
+		        "tag": "proxy-one",
+		        "settings": {
+		          "vnext": [
+		            {
+		              "address": "one.example.com",
+		              "port": 443,
+		              "users": [
+		                {
+		                  "id": "11111111-1111-1111-1111-111111111111",
+		                  "encryption": "none",
+		                  "flow": "xtls-rprx-vision"
+		                }
+		              ]
+		            }
+		          ]
+		        },
+		        "streamSettings": {
+		          "network": "tcp",
+		          "security": "reality",
+		          "realitySettings": {
+		            "serverName": "gateway-one.example",
+		            "publicKey": "public-key-one",
+		            "shortId": "short-one",
+		            "fingerprint": "random"
+		          }
+		        }
+		      }
+		    ]
+		  }
+		]`))
+	}))
+	defer server.Close()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:           "sub-1",
+				SourceType:   domain.SourceTypeURL,
+				Source:       server.URL,
+				ProviderName: "test-provider",
+				Nodes: []domain.Node{
+					{ID: "old-node"},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store, HTTPClient: server.Client()})
+
+	sub, err := service.RefreshSubscription(context.Background(), "sub-1")
+	if err != nil {
+		t.Fatalf("refresh subscription: %v", err)
+	}
+
+	if sub.ParserStatus != "ok" {
+		t.Fatalf("unexpected parser status: %s", sub.ParserStatus)
+	}
+	if len(sub.Nodes) != 1 {
+		t.Fatalf("expected 1 node after refresh, got %d", len(sub.Nodes))
+	}
+	if sub.Nodes[0].Address != "one.example.com" {
+		t.Fatalf("unexpected node address: %s", sub.Nodes[0].Address)
+	}
+}
+
+func TestRemoveSubscriptionDeletesInactiveSubscription(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{ID: "sub-1", DisplayName: "One"},
+			{ID: "sub-2", DisplayName: "Two"},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	if err := service.RemoveSubscription(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("remove subscription: %v", err)
+	}
+
+	if len(store.subs) != 1 {
+		t.Fatalf("expected one subscription left, got %d", len(store.subs))
+	}
+	if store.subs[0].ID != "sub-2" {
+		t.Fatalf("unexpected remaining subscription: %s", store.subs[0].ID)
+	}
+}
+
+func TestRemoveSubscriptionDisconnectsActiveSubscription(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{ID: "sub-1", DisplayName: "One"},
+		},
+	}
+	store.settings.AutoMode = true
+	store.settings.Mode = domain.SelectionModeAuto
+	store.state.ActiveSubscriptionID = "sub-1"
+	store.state.ActiveNodeID = "node-1"
+	store.state.Mode = domain.SelectionModeAuto
+	store.state.Connected = true
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	if err := service.RemoveSubscription(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("remove active subscription: %v", err)
+	}
+
+	if runtimeBackend.stopCalls != 1 {
+		t.Fatalf("expected backend stop once, got %d", runtimeBackend.stopCalls)
+	}
+	if firewall.disableCalls != 1 {
+		t.Fatalf("expected firewall disable once, got %d", firewall.disableCalls)
+	}
+	if len(store.subs) != 0 {
+		t.Fatalf("expected no subscriptions left, got %d", len(store.subs))
+	}
+	if store.state.ActiveSubscriptionID != "" || store.state.ActiveNodeID != "" {
+		t.Fatalf("expected active subscription to be cleared, got %+v", store.state)
+	}
+	if store.state.Connected {
+		t.Fatal("expected runtime state to be disconnected")
+	}
+	if store.settings.AutoMode {
+		t.Fatal("expected auto mode to be disabled")
+	}
+	if store.settings.Mode != domain.SelectionModeDisconnected {
+		t.Fatalf("expected settings mode disconnected, got %s", store.settings.Mode)
+	}
+}
+
+func TestRemoveAllSubscriptionsDisconnectsActiveSubscription(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{ID: "sub-1", DisplayName: "One"},
+			{ID: "sub-2", DisplayName: "Two"},
+		},
+	}
+	store.settings.AutoMode = true
+	store.settings.Mode = domain.SelectionModeAuto
+	store.state.ActiveSubscriptionID = "sub-2"
+	store.state.ActiveNodeID = "node-2"
+	store.state.Mode = domain.SelectionModeAuto
+	store.state.Connected = true
+
+	runtimeBackend := &recordingBackend{}
+	firewall := &recordingFirewaller{}
+	service := NewService(Dependencies{
+		Store:      store,
+		Backend:    runtimeBackend,
+		Firewaller: firewall,
+	})
+
+	removed, err := service.RemoveAllSubscriptions(context.Background())
+	if err != nil {
+		t.Fatalf("remove all subscriptions: %v", err)
+	}
+
+	if removed != 2 {
+		t.Fatalf("expected to remove 2 subscriptions, got %d", removed)
+	}
+	if runtimeBackend.stopCalls != 1 {
+		t.Fatalf("expected backend stop once, got %d", runtimeBackend.stopCalls)
+	}
+	if firewall.disableCalls != 1 {
+		t.Fatalf("expected firewall disable once, got %d", firewall.disableCalls)
+	}
+	if len(store.subs) != 0 {
+		t.Fatalf("expected no subscriptions left, got %d", len(store.subs))
+	}
+	if store.state.ActiveSubscriptionID != "" || store.state.ActiveNodeID != "" {
+		t.Fatalf("expected active subscription to be cleared, got %+v", store.state)
+	}
+	if store.state.Connected {
+		t.Fatal("expected runtime state to be disconnected")
+	}
+	if store.settings.AutoMode {
+		t.Fatal("expected auto mode to be disabled")
+	}
+	if store.settings.Mode != domain.SelectionModeDisconnected {
+		t.Fatalf("expected settings mode disconnected, got %s", store.settings.Mode)
+	}
+}
+
+func TestAddSubscriptionSavesToSharedServerList(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Add first singleton node raw
+	sub1, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		Raw: "vless://07d978e1-62f3-4ffa-9e28-60ac51d1bbb8@3.72.7.78:443?encryption=none&security=reality&sni=images.apple.com&fp=chrome&pbk=gJHWg7lnRExvVzbvZhoAA38du07j99lrVnYncuMTLDk&sid=22f15c12267a9b1d#Frankfurt",
+	})
+	if err != nil {
+		t.Fatalf("add first singleton: %v", err)
+	}
+
+	if sub1.ID != "server-list" {
+		t.Fatalf("expected subscription ID to be 'server-list', got %q", sub1.ID)
+	}
+	if len(sub1.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(sub1.Nodes))
+	}
+	if sub1.Nodes[0].SubscriptionID != "server-list" {
+		t.Fatalf("expected node subscription ID to be 'server-list', got %q", sub1.Nodes[0].SubscriptionID)
+	}
+
+	// Add second singleton node raw
+	sub2, err := service.AddSubscription(context.Background(), AddSubscriptionRequest{
+		Raw: "socks://YWxheGF5OmFsYXhheQ==@3.74.152.66:1080#Socks5",
+	})
+	if err != nil {
+		t.Fatalf("add second singleton: %v", err)
+	}
+
+	if sub2.ID != "server-list" {
+		t.Fatalf("expected subscription ID to remain 'server-list', got %q", sub2.ID)
+	}
+	if len(sub2.Nodes) != 2 {
+		t.Fatalf("expected 2 nodes total in shared server list, got %d", len(sub2.Nodes))
+	}
+	if sub2.Nodes[1].SubscriptionID != "server-list" {
+		t.Fatalf("expected second node subscription ID to be 'server-list', got %q", sub2.Nodes[1].SubscriptionID)
+	}
+}
+
+func TestRemoveSubscriptionNode(t *testing.T) {
+	t.Parallel()
+
+	node1 := domain.Node{ID: "node-1", Protocol: domain.ProtocolVLESS, Address: "1.1.1.1", SubscriptionID: "server-list"}
+	node2 := domain.Node{ID: "node-2", Protocol: domain.ProtocolSocks, Address: "2.2.2.2", SubscriptionID: "server-list"}
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID:          "server-list",
+				SourceType:  domain.SourceTypeRaw,
+				DisplayName: "Server List",
+				Nodes:       []domain.Node{node1, node2},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Remove node-1
+	err := service.RemoveSubscriptionNode(context.Background(), "server-list", "node-1")
+	if err != nil {
+		t.Fatalf("remove node-1: %v", err)
+	}
+
+	if len(store.subs) != 1 {
+		t.Fatalf("expected 1 subscription remaining, got %d", len(store.subs))
+	}
+	if len(store.subs[0].Nodes) != 1 {
+		t.Fatalf("expected 1 node remaining in server-list, got %d", len(store.subs[0].Nodes))
+	}
+	if store.subs[0].Nodes[0].ID != "node-2" {
+		t.Fatalf("expected node-2 to be the remaining node, got %q", store.subs[0].Nodes[0].ID)
+	}
+
+	// Remove node-2 (last node, should delete subscription)
+	err = service.RemoveSubscriptionNode(context.Background(), "server-list", "node-2")
+	if err != nil {
+		t.Fatalf("remove node-2: %v", err)
+	}
+
+	if len(store.subs) != 0 {
+		t.Fatalf("expected subscription to be deleted entirely when no nodes remain, got %d", len(store.subs))
+	}
+}
+
+func TestMoveSubscription(t *testing.T) {
+	t.Parallel()
+
+	sub1 := domain.Subscription{ID: "sub-1", DisplayName: "Sub 1"}
+	sub2 := domain.Subscription{ID: "sub-2", DisplayName: "Sub 2"}
+	sub3 := domain.Subscription{ID: "sub-3", DisplayName: "Sub 3"}
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs:     []domain.Subscription{sub1, sub2, sub3},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	// Move sub-2 up -> should swap sub-1 and sub-2
+	err := service.MoveSubscription(context.Background(), "sub-2", "up")
+	if err != nil {
+		t.Fatalf("move sub-2 up: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-2" || store.subs[1].ID != "sub-1" || store.subs[2].ID != "sub-3" {
+		t.Fatalf("unexpected order after move up: %+v", store.subs)
+	}
+
+	// Move sub-2 down -> should swap sub-2 and sub-1
+	err = service.MoveSubscription(context.Background(), "sub-2", "down")
+	if err != nil {
+		t.Fatalf("move sub-2 down: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-1" || store.subs[1].ID != "sub-2" || store.subs[2].ID != "sub-3" {
+		t.Fatalf("unexpected order after move down: %+v", store.subs)
+	}
+
+	// Move sub-1 up (at boundary, should do nothing)
+	err = service.MoveSubscription(context.Background(), "sub-1", "up")
+	if err != nil {
+		t.Fatalf("move sub-1 up at boundary: %v", err)
+	}
+
+	if store.subs[0].ID != "sub-1" {
+		t.Fatalf("unexpected order after boundary move: %+v", store.subs)
+	}
+}
+
+type memoryStore struct {
+	subs     []domain.Subscription
+	settings domain.Settings
+	state    domain.RuntimeState
+
+	loadSettingsErr error
+	saveStateCalls  int
+}
+
+type rewriteURLRoundTripper struct {
+	base   http.RoundTripper
+	target *url.URL
+}
+
+func (r rewriteURLRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	transport := r.base
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	cloned := req.Clone(req.Context())
+	cloned.URL = cloneURL(req.URL)
+	cloned.URL.Scheme = r.target.Scheme
+	cloned.URL.Host = r.target.Host
+	return transport.RoundTrip(cloned)
+}
+
+func cloneURL(value *url.URL) *url.URL {
+	if value == nil {
+		return &url.URL{}
+	}
+	copy := *value
+	return &copy
+}
+
+func (s *memoryStore) LoadSubscriptions() ([]domain.Subscription, error) {
+	return s.subs, nil
+}
+
+func (s *memoryStore) SaveSubscriptions(subs []domain.Subscription) error {
+	s.subs = subs
+	return nil
+}
+
+func (s *memoryStore) LoadSettings() (domain.Settings, error) {
+	if s.loadSettingsErr != nil {
+		return domain.Settings{}, s.loadSettingsErr
+	}
+	return s.settings, nil
+}
+
+func (s *memoryStore) SaveSettings(settings domain.Settings) error {
+	s.settings = settings
+	return nil
+}
+
+func (s *memoryStore) LoadState() (domain.RuntimeState, error) {
+	return s.state, nil
+}
+
+func (s *memoryStore) SaveState(state domain.RuntimeState) error {
+	s.state = state
+	s.saveStateCalls++
+	return nil
+}
+
+type recordingBackend struct {
+	requests             []backend.ConfigRequest
+	stopCalls            int
+	startCalls           int
+	status               backend.RuntimeStatus
+	statuses             []backend.RuntimeStatus
+	statusCalls          int
+	statusErr            error
+	captureRollbackCalls int
+	rollbackCalls        int
+	rollbackErr          error
+	rollbackSnapshot     backend.RollbackSnapshot
+	lastRollbackSnapshot backend.RollbackSnapshot
+	order                *[]string
+}
+
+func (b *recordingBackend) GenerateConfig(req backend.ConfigRequest) ([]byte, error) {
+	return nil, nil
+}
+
+func (b *recordingBackend) ApplyConfig(_ context.Context, req backend.ConfigRequest) error {
+	b.requests = append(b.requests, req)
+	return nil
+}
+
+func (b *recordingBackend) CaptureRollback() (backend.RollbackSnapshot, error) {
+	b.captureRollbackCalls++
+	if b.rollbackSnapshot.Available || len(b.rollbackSnapshot.Config) > 0 {
+		return b.rollbackSnapshot, nil
+	}
+	return backend.RollbackSnapshot{
+		Available: true,
+		Config:    []byte("last-known-good"),
+	}, nil
+}
+
+func (b *recordingBackend) RollbackConfig(_ context.Context, snapshot backend.RollbackSnapshot) error {
+	b.rollbackCalls++
+	b.lastRollbackSnapshot = snapshot
+	return b.rollbackErr
+}
+
+func (b *recordingBackend) Start(context.Context) error {
+	b.startCalls++
+	return nil
+}
+
+func (b *recordingBackend) Stop(context.Context) error {
+	b.stopCalls++
+	if b.order != nil {
+		*b.order = append(*b.order, "backend.stop")
+	}
+	return nil
+}
+
+func (b *recordingBackend) Reload(context.Context) error { return nil }
+func (b *recordingBackend) Status(context.Context) (backend.RuntimeStatus, error) {
+	if b.statusErr != nil {
+		return backend.RuntimeStatus{}, b.statusErr
+	}
+	if len(b.statuses) > 0 {
+		index := b.statusCalls
+		b.statusCalls++
+		if index >= len(b.statuses) {
+			index = len(b.statuses) - 1
+		}
+		return b.statuses[index], nil
+	}
+	b.statusCalls++
+	if b.status == (backend.RuntimeStatus{}) {
+		return backend.RuntimeStatus{Running: true, ServiceState: "running"}, nil
+	}
+	return b.status, nil
+}
+
+type recordingFirewaller struct {
+	applied      []domain.FirewallSettings
+	validated    []domain.FirewallSettings
+	disableCalls int
+	validateErr  error
+	order        *[]string
+}
+
+type recordingDNSManager struct {
+	applyCalls   int
+	disableCalls int
+	systemCalls  int
+	applyErr     error
+	disableErr   error
+	systemErr    error
+	system       []string
+	status       domain.DNSRuntimeStatus
+	statusErr    error
+	lastSettings domain.DNSSettings
+	lastListen   string
+	lastPort     int
+	order        *[]string
+}
+
+type recordingIPv6Manager struct {
+	applied []bool
+	status  domain.IPv6Status
+	err     error
+}
+
+type recordingZapretManager struct {
+	applyDomains [][]string
+	applyCIDRs   [][]string
+	applyStatus  domain.ZapretStatus
+	applyErr     error
+	status       domain.ZapretStatus
+	statusErr    error
+	disableCalls int
+	disableErr   error
+}
+
+func (f *recordingFirewaller) Validate(_ context.Context, settings domain.FirewallSettings) error {
+	f.validated = append(f.validated, settings)
+	return f.validateErr
+}
+
+func (f *recordingFirewaller) Apply(_ context.Context, settings domain.FirewallSettings) error {
+	f.applied = append(f.applied, settings)
+	return nil
+}
+
+func (f *recordingFirewaller) Disable(context.Context) error {
+	f.disableCalls++
+	if f.order != nil {
+		*f.order = append(*f.order, "firewall.disable")
+	}
+	return nil
+}
+
+func (m *recordingDNSManager) SystemResolvers(context.Context) ([]string, error) {
+	m.systemCalls++
+	if m.systemErr != nil {
+		return nil, m.systemErr
+	}
+	if len(m.system) == 0 {
+		return []string{"185.154.74.2", "8.8.8.8"}, nil
+	}
+	return append([]string(nil), m.system...), nil
+}
+
+func (m *recordingDNSManager) Apply(_ context.Context, settings domain.DNSSettings, listen string, port int) error {
+	m.applyCalls++
+	m.lastSettings = settings
+	m.lastListen = listen
+	m.lastPort = port
+	if m.order != nil {
+		*m.order = append(*m.order, "dns.apply")
+	}
+	return m.applyErr
+}
+
+func (m *recordingDNSManager) Disable(context.Context) error {
+	m.disableCalls++
+	if m.order != nil {
+		*m.order = append(*m.order, "dns.disable")
+	}
+	return m.disableErr
+}
+
+func (m *recordingDNSManager) Status(context.Context) (domain.DNSRuntimeStatus, error) {
+	return m.status, m.statusErr
+}
+
+func (m *recordingIPv6Manager) Apply(_ context.Context, disabled bool) error {
+	m.applied = append(m.applied, disabled)
+	return m.err
+}
+
+func (m *recordingIPv6Manager) Status(context.Context) (domain.IPv6Status, error) {
+	return m.status, m.err
+}
+
+func (m *recordingZapretManager) Apply(_ context.Context, domains, cidrs []string) (domain.ZapretStatus, error) {
+	m.applyDomains = append(m.applyDomains, append([]string(nil), domains...))
+	m.applyCIDRs = append(m.applyCIDRs, append([]string(nil), cidrs...))
+	if m.applyStatus == (domain.ZapretStatus{}) && m.status != (domain.ZapretStatus{}) {
+		m.applyStatus = m.status
+	}
+	if m.applyStatus == (domain.ZapretStatus{}) {
+		m.applyStatus = domain.ZapretStatus{
+			Installed:    true,
+			Managed:      true,
+			Active:       true,
+			ServiceState: "running",
+		}
+	}
+	if m.status == (domain.ZapretStatus{}) {
+		m.status = m.applyStatus
+	}
+	return m.applyStatus, m.applyErr
+}
+
+func (m *recordingZapretManager) Disable(context.Context) error {
+	m.disableCalls++
+	return m.disableErr
+}
+
+func (m *recordingZapretManager) Status(context.Context) (domain.ZapretStatus, error) {
+	if m.status == (domain.ZapretStatus{}) && m.applyStatus != (domain.ZapretStatus{}) {
+		return m.applyStatus, m.statusErr
+	}
+	return m.status, m.statusErr
+}
+
+type fakeChecker struct {
+	results map[string]probe.Result
+}
+
+func (f fakeChecker) Check(_ context.Context, node domain.Node) probe.Result {
+	if result, ok := f.results[node.ID]; ok {
+		result.NodeID = node.ID
+		if result.Checked.IsZero() {
+			result.Checked = time.Now().UTC()
+		}
+		return result
+	}
+	return probe.Result{
+		NodeID:  node.ID,
+		Healthy: true,
+		Latency: time.Second,
+		Checked: time.Now().UTC(),
+		Err:     fmt.Errorf("missing fake probe result for %s", node.ID),
+	}
+}
+
+type fakeResolver struct {
+	lookups map[string][]net.IPAddr
+	err     error
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func (r fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAddr, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if result, ok := r.lookups[host]; ok {
+		return result, nil
+	}
+	return nil, fmt.Errorf("missing fake resolver result for %s", host)
+}
+
+func TestConnectManualSelectsBestDuplicateNode(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de1.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+					{
+						ID:       "node-2",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de2.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+					{
+						ID:       "node-3",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de3.example.com",
+						Port:     443,
+						UUID:     "11111111-1111-1111-1111-111111111111",
+					},
+				},
+			},
+		},
+	}
+
+	checker := &fakeChecker{
+		results: map[string]probe.Result{
+			"node-1": {
+				Healthy: true,
+				Latency: 200 * time.Millisecond,
+			},
+			"node-2": {
+				Healthy: true,
+				Latency: 50 * time.Millisecond,
+			},
+			"node-3": {
+				Healthy: false,
+				Latency: 0,
+			},
+		},
+	}
+
+	backend := &recordingBackend{}
+	service := NewService(Dependencies{
+		Store:   store,
+		Backend: backend,
+		Checker: checker,
+	})
+
+	if err := service.ConnectManual(context.Background(), "sub-1", "node-1"); err != nil {
+		t.Fatalf("connect manual: %v", err)
+	}
+
+	state, err := store.LoadState()
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+
+	if state.ActiveNodeID != "node-2" {
+		t.Fatalf("expected active node to be node-2, got %q", state.ActiveNodeID)
+	}
+}
+
+func TestListNodesDeduplication(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{
+		settings: domain.DefaultSettings(),
+		state:    domain.DefaultRuntimeState(),
+		subs: []domain.Subscription{
+			{
+				ID: "sub-1",
+				Nodes: []domain.Node{
+					{
+						ID:       "node-1",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de1.example.com",
+						Port:     443,
+					},
+					{
+						ID:       "node-2",
+						Name:     "Auto Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de2.example.com",
+						Port:     443,
+					},
+					{
+						ID:       "node-3",
+						Name:     "Other Node",
+						Protocol: domain.ProtocolVLESS,
+						Address:  "de3.example.com",
+						Port:     443,
+					},
+				},
+			},
+		},
+	}
+
+	service := NewService(Dependencies{Store: store})
+
+	nodes, err := service.ListNodes("sub-1")
+	if err != nil {
+		t.Fatalf("list nodes: %v", err)
+	}
+
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 unique nodes, got %d: %+v", len(nodes), nodes)
+	}
+
+	if nodes[0].Name != "Auto Node" || nodes[1].Name != "Other Node" {
+		t.Fatalf("unexpected nodes: %+v", nodes)
+	}
+
+	subs, err := service.ListSubscriptions()
+	if err != nil {
+		t.Fatalf("list subscriptions: %v", err)
+	}
+
+	if len(subs) != 1 || len(subs[0].Nodes) != 2 {
+		t.Fatalf("expected 1 subscription with 2 nodes, got %+v", subs)
+	}
+}
