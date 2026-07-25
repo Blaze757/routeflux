@@ -1,4 +1,4 @@
-package openwrt
+﻿package openwrt
 
 import (
 	"bufio"
@@ -22,6 +22,22 @@ func dnsmasqBinaryPath() string {
 	}
 	return defaultDNSMasqBinaryPath
 }
+
+var allowedDNSMasqBinaryPaths = []string{
+	"/usr/sbin/dnsmasq",
+	"/sbin/dnsmasq",
+}
+
+func validateDNSMasqBinaryPath(path string) error {
+	clean := filepath.Clean(path)
+	for _, a := range allowedDNSMasqBinaryPaths {
+		if clean == a {
+			return nil
+	}
+	}
+	return fmt.Errorf("dnsmasq binary path not in allowlist: %s", path)
+}
+
 
 func dnsmasqServicePath() string {
 	if path := os.Getenv("ROUTEFLUX_DNSMASQ_SERVICE"); path != "" {

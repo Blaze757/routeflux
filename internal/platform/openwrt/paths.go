@@ -1,8 +1,10 @@
 package openwrt
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -26,6 +28,22 @@ func RootDir() string {
 		return defaultRoot
 	}
 	return filepath.Join(".", ".routeflux")
+}
+
+var allowedRootBases = []string{
+	"/etc/routeflux",
+	"/opt/routeflux",
+	"/var/lib/routeflux",
+}
+
+func validateRootDir(root string) error {
+	clean := filepath.Clean(root)
+	for _, base := range allowedRootBases {
+		if clean == base || strings.HasPrefix(clean, base+"/") {
+			return nil
+		}
+	}
+	return fmt.Errorf("root directory not in allowlist: %s", clean)
 }
 
 // XrayConfigPath returns the default Xray config path.

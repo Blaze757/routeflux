@@ -128,7 +128,10 @@ func (o *rootOptions) initService(cmd *cobra.Command) error {
 	logger := newLogger(logLevel)
 	fileStore.WithLogger(logger)
 	controller := openwrt.NewXrayController()
-	firewall := openwrt.NewFirewallManager()
+	firewall, err := openwrt.NewFirewallManager()
+	if err != nil {
+		return err
+	}
 	ipv6Manager := openwrt.NewIPv6Manager()
 	zapretManager := openwrt.NewZapretManager()
 	var dnsManager app.DNSManager

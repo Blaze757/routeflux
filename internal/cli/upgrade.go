@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,20 @@ import (
 
 const routefluxLatestInstallScriptURL = "https://github.com/Blaze757/routeflux/releases/latest/download/install.sh"
 
-var routefluxUpgradeInstallerPath = "/tmp/routeflux-install.sh"
+// upgradeInstallerPathOverride is set by tests to override the installer path.
+var upgradeInstallerPathOverride string
+
+func upgradeInstallerDir() string {
+	if upgradeInstallerPathOverride != "" {
+		return filepath.Dir(upgradeInstallerPathOverride)
+	}
+	dir, err := os.MkdirTemp("", "routeflux-upgrade-")
+	if err != nil {
+		return os.TempDir()
+	}
+	_ = os.Chmod(dir, 0o700)
+	return dir
+}
 
 type upgradeResult struct {
 	Status         string `json:"status"`
@@ -64,6 +78,13 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 				}
 				cleanMsg := strings.TrimSpace(strings.Join(cleanLines, "\n"))
 
+				upgradeDir := upgradeInstallerDir()
+				defer os.RemoveAll(upgradeDir)
+				routefluxUpgradeInstallerPath := upgradeInstallerPathOverride
+				if routefluxUpgradeInstallerPath == "" {
+					routefluxUpgradeInstallerPath = filepath.Join(upgradeDir, "install.sh")
+				}
+
 				res := upgradeResult{
 					Status:        status,
 					URL:           routefluxLatestInstallScriptURL,
@@ -74,6 +95,13 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 			}
 			return nil
 		}
+	}
+
+	upgradeDir := upgradeInstallerDir()
+	defer os.RemoveAll(upgradeDir)
+	routefluxUpgradeInstallerPath := upgradeInstallerPathOverride
+	if routefluxUpgradeInstallerPath == "" {
+		routefluxUpgradeInstallerPath = filepath.Join(upgradeDir, "install.sh")
 	}
 
 	result := upgradeResult{
@@ -87,6 +115,12 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 		return fmt.Errorf("download latest installer: %w", err)
 	}
 	result.DownloadOutput = strings.TrimSpace(downloadOutput)
+
+	// TODO: Verify script SHA256 checksum before execution.
+	// expectedSHA256 := "..." // set at build time
+	// if err := verifyUpgradeScriptSHA256(routefluxUpgradeInstallerPath, expectedSHA256); err != nil {
+	//     return fmt.Errorf("upgrade script verification failed: %w", err)
+	// }
 
 	installOutput, err := runUpgradeCommand(ctx, cmd, jsonOutput, "sh", routefluxUpgradeInstallerPath)
 	if err != nil {

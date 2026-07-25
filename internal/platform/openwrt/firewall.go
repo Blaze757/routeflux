@@ -82,8 +82,8 @@ type firewallPolicy struct {
 }
 
 // NewFirewallManager creates an OpenWrt nftables-based firewall manager.
-func NewFirewallManager() FirewallManager {
-	return FirewallManager{
+func NewFirewallManager() (FirewallManager, error) {
+	m := FirewallManager{
 		NFTPath:            "/usr/sbin/nft",
 		IPPath:             "/sbin/ip",
 		RulesPath:          FirewallRulesPath(),
@@ -92,6 +92,13 @@ func NewFirewallManager() FirewallManager {
 		DNSMasqSnippetPath: dnsmasqSnippetOverridePath(),
 		ProcRoot:           "/proc",
 	}
+	if err := validateNFTPath(m.NFTPath); err != nil {
+		return FirewallManager{}, err
+	}
+	if err := validateIPPath(m.IPPath); err != nil {
+		return FirewallManager{}, err
+	}
+	return m, nil
 }
 
 // Validate ensures the current platform supports the requested firewall mode.
@@ -129,7 +136,7 @@ func (m FirewallManager) Apply(ctx context.Context, settings domain.FirewallSett
 	if err != nil {
 		return err
 	}
-	if err := atomicWriteText(m.RulesPath, rules, 0o644); err != nil {
+	if err := atomicWriteText(m.RulesPath, rules, 0o600); err != nil {
 		return fmt.Errorf("write firewall rules: %w", err)
 	}
 
@@ -686,4 +693,26 @@ func atomicWriteText(path, data string, perm os.FileMode) error {
 	}
 
 	return os.Rename(tmpPath, path)
+}
+
+func validateNFTPath(path string) error {
+	allowed := []string{"/usr/sbin/nft", "/sbin/nft"}
+	clean := filepath.Clean(path)
+	for _, a := range allowed {
+		if clean == a {
+			return nil
+		}
+	}
+	return fmt.Errorf("nft path not in allowlist: %s", path)
+}
+
+func validateIPPath(path string) error {
+	allowed := []string{"/sbin/ip", "/usr/sbin/ip", "/bin/ip", "/usr/bin/ip"}
+	clean := filepath.Clean(path)
+	for _, a := range allowed {
+		if clean == a {
+			return nil
+		}
+	}
+	return fmt.Errorf("ip path not in allowlist: %s", path)
 }

@@ -75,7 +75,7 @@ func (m DNSRuntimeManager) Apply(ctx context.Context, settings domain.DNSSetting
 	if err != nil {
 		return err
 	}
-	if err := atomicWriteText(snippetPath, config, 0o644); err != nil {
+	if err := atomicWriteText(snippetPath, config, 0o600); err != nil {
 		return fmt.Errorf("write dnsmasq dns runtime snippet: %w", err)
 	}
 

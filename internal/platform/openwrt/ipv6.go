@@ -38,7 +38,7 @@ func NewIPv6Manager() IPv6Manager {
 // Apply enables or disables IPv6 for current and future interfaces.
 func (m IPv6Manager) Apply(_ context.Context, disabled bool) error {
 	if disabled {
-		if err := atomicWriteText(m.sysctlConfigPath(), managedIPv6SysctlConfig(true), 0o644); err != nil {
+		if err := atomicWriteText(m.sysctlConfigPath(), managedIPv6SysctlConfig(true), 0o600); err != nil {
 			return fmt.Errorf("write ipv6 sysctl config: %w", err)
 		}
 	} else if err := os.Remove(m.sysctlConfigPath()); err != nil && !os.IsNotExist(err) {

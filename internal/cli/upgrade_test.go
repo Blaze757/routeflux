@@ -49,10 +49,10 @@ printf 'installer completed\n'
 
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	prevInstallerPath := routefluxUpgradeInstallerPath
-	routefluxUpgradeInstallerPath = installerPath
+	prevInstallerPath := upgradeInstallerPathOverride
+	upgradeInstallerPathOverride = installerPath
 	t.Cleanup(func() {
-		routefluxUpgradeInstallerPath = prevInstallerPath
+		upgradeInstallerPathOverride = prevInstallerPath
 	})
 
 	cmd := newRootCmd()
@@ -124,10 +124,10 @@ printf 'install ok\n'
 
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	prevInstallerPath := routefluxUpgradeInstallerPath
-	routefluxUpgradeInstallerPath = installerPath
+	prevInstallerPath := upgradeInstallerPathOverride
+	upgradeInstallerPathOverride = installerPath
 	t.Cleanup(func() {
-		routefluxUpgradeInstallerPath = prevInstallerPath
+		upgradeInstallerPathOverride = prevInstallerPath
 	})
 
 	cmd := newRootCmd()

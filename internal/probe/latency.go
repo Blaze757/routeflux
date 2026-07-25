@@ -87,6 +87,10 @@ func pingICMP(ctx context.Context, host string, timeout time.Duration) (time.Dur
 		timeoutSecs = 1
 	}
 
+	if err := validatePingHost(host); err != nil {
+		return 0, err
+	}
+
 	cmd := exec.CommandContext(ctx, "ping", "-c", "1", "-W", fmt.Sprintf("%d", timeoutSecs), host)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -116,4 +120,31 @@ func isCommandNotFound(err error) bool {
 		strings.Contains(errStr, "executable file not found") ||
 		strings.Contains(errStr, "not found in %PATH%") ||
 		strings.Contains(errStr, "not found in $PATH")
+}
+
+func validatePingHost(host string) error {
+	if host == "" {
+		return fmt.Errorf("ping host is empty")
+	}
+	if net.ParseIP(host) != nil {
+		return nil
+	}
+	if len(host) > 253 {
+		return fmt.Errorf("ping host too long: %s", host)
+	}
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if len(label) == 0 || len(label) > 63 {
+			return fmt.Errorf("invalid ping host label: %s", host)
+		}
+		if strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return fmt.Errorf("invalid ping host label (hyphen): %s", label)
+		}
+		for _, r := range label {
+			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+				return fmt.Errorf("invalid character in ping host: %c", r)
+			}
+		}
+	}
+	return nil
 }

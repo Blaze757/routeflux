@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,6 +41,9 @@ func (t CommandTester) Test(ctx context.Context, configPath string) error {
 	if binaryPath == "" {
 		binaryPath = defaultXrayBinaryPath
 	}
+	if err := validateXrayBinaryPath(binaryPath); err != nil {
+		return err
+	}
 
 	cmd := exec.CommandContext(ctx, binaryPath, "-test", "-config", configPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -54,4 +58,20 @@ func xrayBinaryPath() string {
 		return path
 	}
 	return defaultXrayBinaryPath
+}
+
+var allowedXrayBinaryPaths = []string{
+	"/usr/bin/xray",
+	"/usr/local/bin/xray",
+	"/opt/xray/xray",
+}
+
+func validateXrayBinaryPath(path string) error {
+	clean := filepath.Clean(path)
+	for _, a := range allowedXrayBinaryPaths {
+		if clean == a {
+			return nil
+		}
+	}
+	return fmt.Errorf("xray binary path not in allowlist: %s", path)
 }
