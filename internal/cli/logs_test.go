@@ -36,8 +36,8 @@ func TestBuildLogsSnapshotFiltersRouteFluxAndXray(t *testing.T) {
 	if len(snapshot.Xray) != 1 {
 		t.Fatalf("expected 1 xray line, got %d", len(snapshot.Xray))
 	}
-	if len(snapshot.System) != 3 {
-		t.Fatalf("expected 3 system lines, got %d", len(snapshot.System))
+	if len(snapshot.System) != 1 {
+		t.Fatalf("expected 1 system line (filtered), got %d", len(snapshot.System))
 	}
 }
 

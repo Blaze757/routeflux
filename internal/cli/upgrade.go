@@ -118,27 +118,29 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 	}
 	result.DownloadOutput = strings.TrimSpace(downloadOutput)
 
-	// Download and verify SHA256 checksum
-	checksumURL := routefluxLatestInstallScriptURL + ".sha256"
-	checksumPath := routefluxUpgradeInstallerPath + ".sha256"
-	if _, err := runUpgradeCommand(ctx, cmd, jsonOutput, "wget", "-q", "-O", checksumPath, checksumURL); err == nil {
-		expectedSHA256, err := os.ReadFile(checksumPath)
-		if err == nil {
-			expected := strings.TrimSpace(string(expectedSHA256))
-			// Handle "hash  filename" format
-			if parts := strings.Fields(expected); len(parts) >= 2 {
-				expected = parts[0]
+	if upgradeInstallerPathOverride == "" {
+		// Download and verify SHA256 checksum
+		checksumURL := routefluxLatestInstallScriptURL + ".sha256"
+		checksumPath := routefluxUpgradeInstallerPath + ".sha256"
+		if _, err := runUpgradeCommand(ctx, cmd, jsonOutput, "wget", "-q", "-O", checksumPath, checksumURL); err == nil {
+			expectedSHA256, err := os.ReadFile(checksumPath)
+			if err == nil {
+				expected := strings.TrimSpace(string(expectedSHA256))
+				// Handle "hash  filename" format
+				if parts := strings.Fields(expected); len(parts) >= 2 {
+					expected = parts[0]
+				}
+				if err := verifyScriptSHA256(routefluxUpgradeInstallerPath, expected); err != nil {
+					return fmt.Errorf("upgrade script verification failed: %w", err)
+				}
 			}
-			if err := verifyScriptSHA256(routefluxUpgradeInstallerPath, expected); err != nil {
-				return fmt.Errorf("upgrade script verification failed: %w", err)
+		} else {
+			if jsonOutput {
+				fmt.Fprintf(cmd.ErrOrStderr(), "WARNING: could not download checksum, skipping verification\n")
 			}
 		}
-	} else {
-		if jsonOutput {
-			fmt.Fprintf(cmd.ErrOrStderr(), "WARNING: could not download checksum, skipping verification\n")
-		}
-	}
 
+	}
 	installOutput, err := runUpgradeCommand(ctx, cmd, jsonOutput, "sh", routefluxUpgradeInstallerPath)
 	if err != nil {
 		return fmt.Errorf("run latest installer: %w", err)

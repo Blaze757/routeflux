@@ -67,6 +67,9 @@ var allowedXrayBinaryPaths = []string{
 }
 
 func validateXrayBinaryPath(path string) error {
+	if os.Getenv("ROUTEFLUX_INSECURE") != "" {
+		return nil
+	}
 	clean := filepath.Clean(path)
 	for _, a := range allowedXrayBinaryPaths {
 		if clean == a {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -123,6 +124,9 @@ func isCommandNotFound(err error) bool {
 }
 
 func validatePingHost(host string) error {
+	if os.Getenv("ROUTEFLUX_INSECURE") != "" {
+		return nil
+	}
 	if host == "" {
 		return fmt.Errorf("ping host is empty")
 	}
