@@ -38,17 +38,8 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test (internal)
-        run: go test -v -count=1 ./internal/... 2>&1 | tail -100
-
-      - name: Test (pkg + cmd)
-        run: go test -v -count=1 ./pkg/... ./cmd/... 2>&1 | tail -100
-
-      - name: Test (release scripts)
-        run: go test -v -count=1 ./test/release/ 2>&1 | tail -100
-
-      - name: Test (luci)
-        run: go test -v -count=1 ./test/luci/ 2>&1 | tail -100
+      - name: Test
+        run: go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/
 
       - name: Runtime coverage gate
         if: success()
