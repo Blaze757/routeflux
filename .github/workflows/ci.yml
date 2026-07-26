@@ -39,10 +39,15 @@ jobs:
         run: go vet ./...
 
       - name: Test
+        id: test
         run: |
-          go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ 2>&1 | tee /tmp/test.log; rc=${PIPESTATUS[0]}
+          set +e
+          go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ 2>&1 > /tmp/test.log
+          rc=$?
+          set -e
+          echo "exit_code=$rc" >> $GITHUB_OUTPUT
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -200 /tmp/test.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/test.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           exit $rc
 
