@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -24,10 +24,34 @@ jobs:
           go-version: '1.26.1'
           cache: true
 
-      - name: Run lint and unit tests
-        run: make lint
+      - name: Check gofmt
+        run: |
+          echo "=== Checking gofmt ==="
+          out="$(gofmt -l $(find . -type f -name '*.go' -not -path './bin/*' -not -path './dist/*' -not -path './.cache/*'))"
+          if [ -n "$out" ]; then
+            echo "Files needing gofmt:"
+            echo "$out"
+            exit 1
+          fi
+          echo "gofmt OK"
+
+      - name: Check go vet
+        run: |
+          echo "=== Running go vet ==="
+          go vet ./...
+          echo "go vet OK"
+        env:
+          ROUTEFLUX_INSECURE: "1"
+
+      - name: Run unit tests
+        run: |
+          echo "=== Running go test ==="
+          go test ./...
+          echo "go test OK"
         env:
           ROUTEFLUX_INSECURE: "1"
 
       - name: Enforce runtime coverage gate
         run: make coverage-runtime
+        env:
+          ROUTEFLUX_INSECURE: "1"
