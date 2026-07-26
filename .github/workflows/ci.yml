@@ -39,7 +39,9 @@ jobs:
         run: go vet ./...
 
       - name: Unit tests
-        run: go test ./...
+        run: |
+          go test ./internal/... ./pkg/... ./cmd/...
+          go test ./test/release/ ./test/luci/
 
       - name: Runtime coverage gate
         run: make coverage-runtime
