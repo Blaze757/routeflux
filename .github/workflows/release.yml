@@ -1,4 +1,4 @@
-﻿name: Release
+name: Release
 
 on:
   push:
@@ -40,6 +40,50 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body: |
+            ﻿## Security Vulnerabilities Fixed
+            
+            ### Critical
+            
+            - **Upgrade script SHA-256 verification bypass** — installer script was downloaded and executed without integrity verification. SHA-256 checksum validation now enforced before execution.
+            - **Path traversal via ROUTEFLUX_ROOT** — ROUTEFLUX_ROOT env var could be manipulated to read/write arbitrary files. Root path is now canonicalized and validated against allowlisted directories.
+            - **Upgrade TOCTOU race condition** — temporary directory for upgrade downloads could be hijacked between creation and use. Fixed with private temp dir, chmod 0700, and deferred cleanup.
+            
+            ### High
+            
+            - **nftables command injection** — firewall rule generation did not validate nft binary path. Added validateNFTPath allowlist restricting to /usr/sbin/nft and /sbin/nft.
+            - **IP address injection in firewall rules** — unvalidated IP addresses in firewall targets could inject arbitrary nftables rules. Added validateIPPath allowlist for CIDR notation.
+            - **DNS masq conf-dir traversal** — dnsmasq configuration path was not validated. Added allowlist restricting to /tmp/dnsmasq.d/ and /tmp/routeflux-dns/.
+            - **Subscription URL SSRF** — subscription fetch did not prevent requests to internal/private IPs. Added SSRF protection blocking RFC 1918, loopback, and link-local addresses.
+            - **DNS bootstrap SSRF** — DNS bootstrap resolver accepted unvalidated upstream addresses. Added validation against allowlisted resolvers.
+            
+            ### Medium
+            
+            - **File permission escalation** — state files created with 0644/0755 permissions allowed world-readability of secrets. Changed to 0600/0700.
+            - **Ping hostname validation bypass** — ICMP ping accepted arbitrary hostnames without validation. Added RFC 1123 hostname validation.
+            - **Reserved TLD domain validation** — subscription parser accepted domains with reserved TLDs (.local, .localhost, .invalid). Added reserved TLD blocking with punycode awareness.
+            - **Diagnostics info leak** — diagnostics --safe mode did not redact all sensitive fields. Extended redaction to cover subscription URLs, server addresses, and UUIDs.
+            - **CLI auth token exposure** — authentication token was logged in debug output. Token now filtered from all log outputs.
+            - **Log filter default state** — logs command showed all system lines by default, exposing internal routeflux/xray messages. Default filter now excludes routeflux and xray process lines.
+            
+            ### Low
+            
+            - **Firewall manager constructor error handling** — NewFirewallManager() silently ignored initialization errors. Now returns (FirewallManager, error) with caller updated.
+            - **Upgrade installer path override** — test override for installer path leaked into production. Guard added.
+            
+            ## Bug Fixes
+            
+            - **TCP checker test race condition** — TestTCPCheckerFailureUsesTimeoutLatency failed intermittently on CI due to port reuse. Added retry loop.
+            - **System log filter logic** — filterLogLines treated routeflux|xray as literal match. Added excludeLogLines with proper Split pattern matching.
+            - **Upgrade test fixture cleanup** — defer os.RemoveAll deleted test fixtures before assertions. Guarded with override check.
+            
+            ## Infrastructure
+            
+            - CI hardened with permissions: contents: read
+            - Go build cache disabled in CI to prevent stale artifacts
+            - gofmt enforcement in CI pipeline
+            
+            **Full Changelog**: https://github.com/Blaze757/routeflux/compare/v0.1.0...v0.1.1
           prerelease: ${{ contains(github.ref_name, '-beta.') }}
           files: |
             dist/*.tar.gz
