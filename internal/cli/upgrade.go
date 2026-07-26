@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"os"
 	"os/exec"
@@ -116,11 +118,26 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 	}
 	result.DownloadOutput = strings.TrimSpace(downloadOutput)
 
-	// TODO: Verify script SHA256 checksum before execution.
-	// expectedSHA256 := "..." // set at build time
-	// if err := verifyUpgradeScriptSHA256(routefluxUpgradeInstallerPath, expectedSHA256); err != nil {
-	//     return fmt.Errorf("upgrade script verification failed: %w", err)
-	// }
+	// Download and verify SHA256 checksum
+	checksumURL := routefluxLatestInstallScriptURL + ".sha256"
+	checksumPath := routefluxUpgradeInstallerPath + ".sha256"
+	if _, err := runUpgradeCommand(ctx, cmd, jsonOutput, "wget", "-q", "-O", checksumPath, checksumURL); err == nil {
+		expectedSHA256, err := os.ReadFile(checksumPath)
+		if err == nil {
+			expected := strings.TrimSpace(string(expectedSHA256))
+			// Handle "hash  filename" format
+			if parts := strings.Fields(expected); len(parts) >= 2 {
+				expected = parts[0]
+			}
+			if err := verifyScriptSHA256(routefluxUpgradeInstallerPath, expected); err != nil {
+				return fmt.Errorf("upgrade script verification failed: %w", err)
+			}
+		}
+	} else {
+		if jsonOutput {
+			fmt.Fprintf(cmd.ErrOrStderr(), "WARNING: could not download checksum, skipping verification\n")
+		}
+	}
 
 	installOutput, err := runUpgradeCommand(ctx, cmd, jsonOutput, "sh", routefluxUpgradeInstallerPath)
 	if err != nil {
@@ -152,4 +169,17 @@ func runUpgradeCommand(ctx context.Context, cmd *cobra.Command, jsonOutput bool,
 	}
 
 	return combined.String(), nil
+}
+
+func verifyScriptSHA256(path, expectedSHA256 string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read script: %w", err)
+	}
+	h := sha256.Sum256(data)
+	actual := hex.EncodeToString(h[:])
+	if actual != expectedSHA256 {
+		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedSHA256, actual)
+	}
+	return nil
 }

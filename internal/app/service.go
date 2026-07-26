@@ -4392,7 +4392,7 @@ func (s *Service) downloadGeoFile(ctx context.Context, rawURL, name string) erro
 		return fmt.Errorf("read %s: %w", rawURL, err)
 	}
 	path := filepath.Join(s.geoDataDir(), name+".dat")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(path), err)
 	}
 	if err := os.WriteFile(path, body, 0o644); err != nil {

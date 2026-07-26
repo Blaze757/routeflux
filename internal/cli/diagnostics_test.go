@@ -66,7 +66,7 @@ func TestRenderDiagnosticsTextIncludesTransparentQUICPolicy(t *testing.T) {
 			State: domain.DefaultRuntimeState(),
 		},
 		TransparentQUICPolicy: "proxied",
-	})
+	}, false)
 
 	if !strings.Contains(text, "transparent-quic-policy=proxied") {
 		t.Fatalf("expected diagnostics text to include transparent quic policy, got %q", text)
@@ -88,7 +88,7 @@ func TestRenderDiagnosticsTextIncludesIPv6FailState(t *testing.T) {
 			EnabledInterfaces:  []string{"br-lan"},
 			Message:            "Transparent routing does not intercept IPv6 traffic.",
 		},
-	})
+	}, false)
 
 	for _, want := range []string{
 		"ipv6-fail-state=true",
@@ -117,7 +117,7 @@ func TestRenderDiagnosticsTextIncludesDNSRuntime(t *testing.T) {
 			DNSMasqSnippetFound: true,
 			SystemResolvers:     []string{"185.154.74.2", "8.8.8.8"},
 		},
-	})
+	}, false)
 
 	for _, want := range []string{
 		"dns-runtime-active=true",

@@ -16,7 +16,8 @@ import (
 const (
 	logreadPath     = "/sbin/logread"
 	xrayLogPath     = "/var/log/xray.log"
-	defaultLogLimit = 200
+	defaultLogLimit          = 200
+	defaultSystemFilterPattern = "routeflux|xray"
 )
 
 var runLogread = defaultRunLogread
@@ -32,11 +33,12 @@ type logsSnapshot struct {
 }
 
 func newLogsCmd(opts *rootOptions) *cobra.Command {
-	return &cobra.Command{
+	var showAll bool
+	cmd := &cobra.Command{
 		Use:   "logs",
 		Short: "Show recent RouteFlux, Xray, and system logs",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			snapshot := buildLogsSnapshot(cmd.Context(), defaultLogLimit)
+			snapshot := buildLogsSnapshot(cmd.Context(), defaultLogLimit, showAll)
 
 			if opts.jsonOutput {
 				return printOutput(cmd, true, snapshot, "")
@@ -45,9 +47,11 @@ func newLogsCmd(opts *rootOptions) *cobra.Command {
 			return printOutput(cmd, false, nil, renderLogsText(snapshot))
 		},
 	}
+	cmd.Flags().BoolVar(&showAll, "all", false, "Show all system logs without filtering")
+	return cmd
 }
 
-func buildLogsSnapshot(ctx context.Context, limit int) logsSnapshot {
+func buildLogsSnapshot(ctx context.Context, limit int, showAll bool) logsSnapshot {
 	snapshot := logsSnapshot{
 		Available: false,
 		Source:    logreadPath,
@@ -63,7 +67,11 @@ func buildLogsSnapshot(ctx context.Context, limit int) logsSnapshot {
 		lines := splitLogLines(output)
 		snapshot.RouteFlux = lastN(filterLogLines(lines, []string{"routeflux["}), limit)
 		snapshot.Xray = lastN(filterLogLines(lines, []string{"xray["}), limit)
-		snapshot.System = lastN(lines, limit)
+		if showAll {
+			snapshot.System = lastN(lines, limit)
+		} else {
+			snapshot.System = lastN(filterLogLines(lines, []string{defaultSystemFilterPattern}), limit)
+		}
 		sources = append(sources, logreadPath)
 	} else {
 		errorsList = append(errorsList, err.Error())

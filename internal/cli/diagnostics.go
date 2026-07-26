@@ -69,7 +69,9 @@ type diagnosticsPathStatus struct {
 }
 
 func newDiagnosticsCmd(opts *rootOptions) *cobra.Command {
-	return &cobra.Command{
+	var safeMode bool
+
+	cmd := &cobra.Command{
 		Use:   "diagnostics",
 		Short: "Show RouteFlux runtime and file diagnostics",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,9 +84,13 @@ func newDiagnosticsCmd(opts *rootOptions) *cobra.Command {
 				return printOutput(cmd, true, snapshot, "")
 			}
 
-			return printOutput(cmd, false, nil, renderDiagnosticsText(snapshot))
+			return printOutput(cmd, false, nil, renderDiagnosticsText(snapshot, safeMode))
 		},
 	}
+
+	cmd.Flags().BoolVar(&safeMode, "safe", false, "Hide sensitive paths and versions in output")
+
+	return cmd
 }
 
 func buildDiagnosticsSnapshot(ctx context.Context, opts *rootOptions) (diagnosticsSnapshot, error) {
@@ -181,7 +187,18 @@ func inspectPath(path string) diagnosticsPathStatus {
 	return status
 }
 
-func renderDiagnosticsText(snapshot diagnosticsSnapshot) string {
+func renderDiagnosticsText(snapshot diagnosticsSnapshot, safeMode bool) string {
+	ipv6ConfigPath := snapshot.IPv6.ConfigPath
+	backendConfigPath := snapshot.Runtime.ConfigPath
+	dnsSnippetPath := snapshot.DNS.DNSMasqSnippetPath
+	dnsResolvFile := snapshot.DNS.ResolvFile
+	if safeMode {
+		ipv6ConfigPath = filepath.Base(ipv6ConfigPath)
+		backendConfigPath = filepath.Base(backendConfigPath)
+		dnsSnippetPath = filepath.Base(dnsSnippetPath)
+		dnsResolvFile = filepath.Base(dnsResolvFile)
+	}
+
 	lines := []string{
 		fmt.Sprintf("connected=%t", snapshot.Status.State.Connected),
 		fmt.Sprintf("mode=%s", snapshot.Status.State.Mode),
@@ -193,12 +210,12 @@ func renderDiagnosticsText(snapshot diagnosticsSnapshot) string {
 		fmt.Sprintf("ipv6-runtime-disabled=%t", snapshot.IPv6.RuntimeDisabled),
 		fmt.Sprintf("ipv6-persistent-disabled=%t", snapshot.IPv6.PersistentDisabled),
 		fmt.Sprintf("ipv6-enabled-interfaces=%s", strings.Join(snapshot.IPv6.EnabledInterfaces, ", ")),
-		fmt.Sprintf("ipv6-config-path=%s", snapshot.IPv6.ConfigPath),
+		fmt.Sprintf("ipv6-config-path=%s", ipv6ConfigPath),
 		fmt.Sprintf("ipv6-message=%s", snapshot.IPv6.Message),
 		fmt.Sprintf("ipv6-error=%s", snapshot.IPv6.Error),
 		fmt.Sprintf("backend-running=%t", snapshot.Runtime.Running),
 		fmt.Sprintf("backend-service-state=%s", snapshot.Runtime.ServiceState),
-		fmt.Sprintf("backend-config=%s", snapshot.Runtime.ConfigPath),
+		fmt.Sprintf("backend-config=%s", backendConfigPath),
 		fmt.Sprintf("backend-error=%s", snapshot.RuntimeError),
 		fmt.Sprintf("dns-runtime-available=%t", snapshot.DNS.Available),
 		fmt.Sprintf("dns-runtime-active=%t", snapshot.DNS.Active),
@@ -211,9 +228,9 @@ func renderDiagnosticsText(snapshot diagnosticsSnapshot) string {
 				return fmt.Sprintf("%d", snapshot.DNS.LocalDNSPort)
 			}(),
 		}, ":"), ":")),
-		fmt.Sprintf("dns-runtime-snippet=%s", snapshot.DNS.DNSMasqSnippetPath),
+		fmt.Sprintf("dns-runtime-snippet=%s", dnsSnippetPath),
 		fmt.Sprintf("dns-runtime-snippet-found=%t", snapshot.DNS.DNSMasqSnippetFound),
-		fmt.Sprintf("dns-runtime-resolv-file=%s", snapshot.DNS.ResolvFile),
+		fmt.Sprintf("dns-runtime-resolv-file=%s", dnsResolvFile),
 		fmt.Sprintf("dns-runtime-system-resolvers=%s", strings.Join(snapshot.DNS.SystemResolvers, ", ")),
 		fmt.Sprintf("dns-runtime-degraded=%s", snapshot.DNS.DegradedReason),
 		fmt.Sprintf("dns-runtime-error=%s", snapshot.DNS.Error),
@@ -225,18 +242,18 @@ func renderDiagnosticsText(snapshot diagnosticsSnapshot) string {
 		fmt.Sprintf("zapret-last-reason=%s", snapshot.Zapret.LastReason),
 		fmt.Sprintf("last-success=%s", formatLocalTimestamp(snapshot.Status.State.LastSuccessAt)),
 		fmt.Sprintf("last-failure=%s", snapshot.Status.State.LastFailureReason),
-		describeDiagnosticFile("routeflux-binary", snapshot.Files.RoutefluxBinary),
-		describeDiagnosticFile("routeflux-root", snapshot.Files.RoutefluxRoot),
-		describeDiagnosticFile("subscriptions-file", snapshot.Files.SubscriptionsFile),
-		describeDiagnosticFile("settings-file", snapshot.Files.SettingsFile),
-		describeDiagnosticFile("state-file", snapshot.Files.StateFile),
-		describeDiagnosticFile("xray-config", snapshot.Files.XrayConfig),
-		describeDiagnosticFile("xray-service", snapshot.Files.XrayService),
-		describeDiagnosticFile("zapret-service", snapshot.Files.ZapretService),
-		describeDiagnosticFile("zapret-hostlist", snapshot.Files.ZapretHostlist),
-		describeDiagnosticFile("zapret-marker", snapshot.Files.ZapretMarker),
-		describeDiagnosticFile("nft-binary", snapshot.Files.NFTBinary),
-		describeDiagnosticFile("firewall-rules", snapshot.Files.FirewallRules),
+		describeDiagnosticFile("routeflux-binary", snapshot.Files.RoutefluxBinary, safeMode),
+		describeDiagnosticFile("routeflux-root", snapshot.Files.RoutefluxRoot, safeMode),
+		describeDiagnosticFile("subscriptions-file", snapshot.Files.SubscriptionsFile, safeMode),
+		describeDiagnosticFile("settings-file", snapshot.Files.SettingsFile, safeMode),
+		describeDiagnosticFile("state-file", snapshot.Files.StateFile, safeMode),
+		describeDiagnosticFile("xray-config", snapshot.Files.XrayConfig, safeMode),
+		describeDiagnosticFile("xray-service", snapshot.Files.XrayService, safeMode),
+		describeDiagnosticFile("zapret-service", snapshot.Files.ZapretService, safeMode),
+		describeDiagnosticFile("zapret-hostlist", snapshot.Files.ZapretHostlist, safeMode),
+		describeDiagnosticFile("zapret-marker", snapshot.Files.ZapretMarker, safeMode),
+		describeDiagnosticFile("nft-binary", snapshot.Files.NFTBinary, safeMode),
+		describeDiagnosticFile("firewall-rules", snapshot.Files.FirewallRules, safeMode),
 	}
 
 	return strings.Join(lines, "\n")
@@ -297,15 +314,20 @@ func buildDiagnosticsIPv6Status(settings domain.FirewallSettings, status domain.
 	return diagnostics
 }
 
-func describeDiagnosticFile(label string, status diagnosticsPathStatus) string {
+func describeDiagnosticFile(label string, status diagnosticsPathStatus, safeMode bool) string {
+	pathDisplay := status.Path
+	if safeMode {
+		pathDisplay = filepath.Base(status.Path)
+	}
+
 	parts := []string{
-		fmt.Sprintf("%s=%s", label, status.Path),
+		fmt.Sprintf("%s=%s", label, pathDisplay),
 		fmt.Sprintf("exists=%t", status.Exists),
 		fmt.Sprintf("directory=%t", status.Directory),
 		fmt.Sprintf("executable=%t", status.Executable),
 	}
 
-	if status.IsSymlink {
+	if status.IsSymlink && !safeMode {
 		parts = append(parts, fmt.Sprintf("symlink=%s", status.SymlinkTarget))
 	}
 	if status.Mode != "" {

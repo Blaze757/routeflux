@@ -25,7 +25,7 @@ func TestBuildLogsSnapshotFiltersRouteFluxAndXray(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
-	snapshot := buildLogsSnapshot(context.Background(), 100)
+	snapshot := buildLogsSnapshot(context.Background(), 100, false)
 
 	if !snapshot.Available {
 		t.Fatal("expected logs to be available")
@@ -36,8 +36,8 @@ func TestBuildLogsSnapshotFiltersRouteFluxAndXray(t *testing.T) {
 	if len(snapshot.Xray) != 1 {
 		t.Fatalf("expected 1 xray line, got %d", len(snapshot.Xray))
 	}
-	if len(snapshot.System) != 4 {
-		t.Fatalf("expected 4 system lines, got %d", len(snapshot.System))
+	if len(snapshot.System) != 3 {
+		t.Fatalf("expected 3 system lines, got %d", len(snapshot.System))
 	}
 }
 
@@ -53,7 +53,7 @@ func TestBuildLogsSnapshotReportsLogreadError(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
-	snapshot := buildLogsSnapshot(context.Background(), 100)
+	snapshot := buildLogsSnapshot(context.Background(), 100, false)
 
 	if snapshot.Available {
 		t.Fatal("expected logs to be unavailable")
@@ -88,7 +88,7 @@ func TestBuildLogsSnapshotPrefersXrayLogFile(t *testing.T) {
 		}, nil
 	}
 
-	snapshot := buildLogsSnapshot(context.Background(), 100)
+	snapshot := buildLogsSnapshot(context.Background(), 100, false)
 
 	if !snapshot.Available {
 		t.Fatal("expected logs to be available")

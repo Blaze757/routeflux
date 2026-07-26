@@ -1,6 +1,7 @@
-package cli
+﻿package cli
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -26,6 +27,7 @@ type rootOptions struct {
 	jsonOutput  bool
 	showVersion bool
 	runUpgrade  bool
+	authToken   string
 	service     *app.Service
 }
 
@@ -59,6 +61,15 @@ func newRootCmd() *cobra.Command {
 			if opts.showVersion || opts.runUpgrade || cmd.Name() == "version" || cmd.Name() == "help" {
 				return nil
 			}
+			stateChanging := map[string]bool{
+				"firewall": true, "upgrade": true, "restart": true,
+				"zapret": true, "connect": true, "disconnect": true,
+			}
+			if stateChanging[cmd.Name()] || opts.runUpgrade {
+				if err := opts.requireAuthToken(cmd); err != nil {
+					return err
+				}
+			}
 			return opts.initService(cmd)
 		},
 	}
@@ -67,6 +78,7 @@ func newRootCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.jsonOutput, "json", false, "Output JSON")
 	cmd.Flags().BoolVar(&opts.showVersion, "version", false, "Print RouteFlux version")
 	cmd.Flags().BoolVar(&opts.runUpgrade, "upgrade", false, "Download and install the latest RouteFlux release")
+	cmd.PersistentFlags().StringVar(&opts.authToken, "auth-token", "", "Authentication token for state-changing commands")
 
 	cmd.AddCommand(
 		newAddCmd(opts),
@@ -93,6 +105,30 @@ func newRootCmd() *cobra.Command {
 	)
 
 	return cmd
+}
+
+const authTokenPath = "/etc/routeflux/auth.token"
+
+func (o *rootOptions) requireAuthToken(cmd *cobra.Command) error {
+	data, err := os.ReadFile(authTokenPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read auth token file: %w", err)
+	}
+	expected := strings.TrimSpace(string(data))
+	if expected == "" {
+		return nil
+	}
+	cmdToken := o.authToken
+	if cmdToken == "" {
+		cmdToken = os.Getenv("ROUTEFLUX_AUTH_TOKEN")
+	}
+	if subtle.ConstantTimeCompare([]byte(cmdToken), []byte(expected)) != 1 {
+		return fmt.Errorf("unauthorized: set --auth-token or ROUTEFLUX_AUTH_TOKEN")
+	}
+	return nil
 }
 
 func (o *rootOptions) initService(cmd *cobra.Command) error {
