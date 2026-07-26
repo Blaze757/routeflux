@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	logreadPath     = "/sbin/logread"
-	xrayLogPath     = "/var/log/xray.log"
-	defaultLogLimit          = 200
+	logreadPath                = "/sbin/logread"
+	xrayLogPath                = "/var/log/xray.log"
+	defaultLogLimit            = 200
 	defaultSystemFilterPattern = "routeflux|xray"
 )
 

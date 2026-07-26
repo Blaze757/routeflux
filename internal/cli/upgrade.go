@@ -3,9 +3,9 @@ package cli
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
