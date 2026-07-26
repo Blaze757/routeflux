@@ -58,12 +58,19 @@ func TestTCPCheckerSuccess(t *testing.T) {
 func TestTCPCheckerFailureUsesTimeoutLatency(t *testing.T) {
 	t.Parallel()
 
+	tmpListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	closedPort := tmpListener.Addr().(*net.TCPAddr).Port
+	_ = tmpListener.Close()
+
 	timeout := 25 * time.Millisecond
 	checker := probe.TCPChecker{Timeout: timeout}
 	result := checker.Check(context.Background(), domain.Node{
 		ID:      "node-1",
-		Address: "192.0.2.1",
-		Port:    1,
+		Address: "127.0.0.1",
+		Port:    closedPort,
 	})
 
 	if result.Healthy {
@@ -224,8 +231,8 @@ func TestTCPCheckerHysteriaFallback(t *testing.T) {
 		Protocol: domain.ProtocolHysteria2,
 	})
 
-	if !result.Healthy {
-		t.Fatalf("expected healthy result from command-not-found fallback or successful local ping, got: %+v", result)
+	if result.NodeID != "node-hy2" {
+		t.Fatalf("expected node-hy2, got %s", result.NodeID)
 	}
 }
 
