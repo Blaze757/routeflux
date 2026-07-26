@@ -39,7 +39,12 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/
+        run: |
+          go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ 2>&1 | tee /tmp/test.log; rc=${PIPESTATUS[0]}
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -200 /tmp/test.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $rc
 
       - name: Runtime coverage gate
         if: success()
