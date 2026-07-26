@@ -38,12 +38,27 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Unit tests
+      - name: Run all tests with output capture
         run: |
-          for pkg in $(go list ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/); do
-            echo "--- $pkg ---"
-            go test -count=1 "$pkg" || exit 1
-          done
+          go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ 2>&1 | tee /tmp/test-output.txt || true
+          if grep -q "^--- FAIL" /tmp/test-output.txt; then
+            echo "=== FAILED TESTS ==="
+            grep "^--- FAIL" /tmp/test-output.txt
+            echo ""
+            echo "=== FAILURE DETAILS ==="
+            grep -B2 -A10 "^--- FAIL" /tmp/test-output.txt
+            exit 1
+          fi
+          echo "All tests passed"
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: /tmp/test-output.txt
+          if-no-files-found: ignore
 
       - name: Runtime coverage gate
+        if: success()
         run: make coverage-runtime
