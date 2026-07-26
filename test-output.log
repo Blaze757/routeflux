@@ -1,0 +1,1989 @@
+--- FAIL: TestBuildLogsSnapshotFiltersRouteFluxAndXray (0.00s)
+--- FAIL: TestUpgradeFlagRunsLatestInstaller (0.01s)
+FAIL
+FAIL	github.com/Blaze757/routeflux/internal/cli	0.544s
+FAIL
+=== FULL TEST OUTPUT ===
+=== RUN   TestConnectAutoUsesConfiguredSwitchCooldown
+=== PAUSE TestConnectAutoUsesConfiguredSwitchCooldown
+=== RUN   TestConnectAutoPrefersLowerLatencyOverInflatedHistory
+=== PAUSE TestConnectAutoPrefersLowerLatencyOverInflatedHistory
+=== RUN   TestConnectAutoActivatesZapretWhenNoHealthyNodesRemain
+=== PAUSE TestConnectAutoActivatesZapretWhenNoHealthyNodesRemain
+=== RUN   TestSchedulerRunHealthOnceSkipsSwitchWhenImprovementBelowThreshold
+=== PAUSE TestSchedulerRunHealthOnceSkipsSwitchWhenImprovementBelowThreshold
+=== RUN   TestSchedulerRunHealthOnceBuffersRepeatedHealthyStateWrites
+=== PAUSE TestSchedulerRunHealthOnceBuffersRepeatedHealthyStateWrites
+=== RUN   TestSchedulerRunHealthOnceKeepsCurrentNodeOnTransientFailure
+=== PAUSE TestSchedulerRunHealthOnceKeepsCurrentNodeOnTransientFailure
+=== RUN   TestSchedulerRunHealthOnceSwitchesAfterFailureThresholdBreach
+=== PAUSE TestSchedulerRunHealthOnceSwitchesAfterFailureThresholdBreach
+=== RUN   TestSchedulerRunHealthOnceKeepsCurrentNodeWhenCandidateVerifyFails
+=== PAUSE TestSchedulerRunHealthOnceKeepsCurrentNodeWhenCandidateVerifyFails
+=== RUN   TestSchedulerRunHealthOnceSwitchesWhenCurrentRuntimeEgressFails
+=== PAUSE TestSchedulerRunHealthOnceSwitchesWhenCurrentRuntimeEgressFails
+=== RUN   TestSchedulerRunHealthOnceFailsBackFromZapretAfterStableProxyRecovery
+=== PAUSE TestSchedulerRunHealthOnceFailsBackFromZapretAfterStableProxyRecovery
+=== RUN   TestSchedulerRunHealthOnceFallsBackToDirectWhenZapretIsUnmanaged
+=== PAUSE TestSchedulerRunHealthOnceFallsBackToDirectWhenZapretIsUnmanaged
+=== RUN   TestSchedulerRunHealthOnceHonorsConfiguredCooldown
+=== PAUSE TestSchedulerRunHealthOnceHonorsConfiguredCooldown
+=== RUN   TestSchedulerRunHealthOnceRecoversDisconnectedAutoMode
+=== PAUSE TestSchedulerRunHealthOnceRecoversDisconnectedAutoMode
+=== RUN   TestSchedulerRunHealthOnceMarksFailureAfterThresholdBreach
+=== PAUSE TestSchedulerRunHealthOnceMarksFailureAfterThresholdBreach
+=== RUN   TestInspectXrayConfigUsesOriginalAddressAndCurrentSettings
+=== PAUSE TestInspectXrayConfigUsesOriginalAddressAndCurrentSettings
+=== RUN   TestInspectXrayConfigDoesNotApplyRuntimeOrMutateState
+=== PAUSE TestInspectXrayConfigDoesNotApplyRuntimeOrMutateState
+=== RUN   TestInspectSpeedUsesIsolatedConfigAndDoesNotMutateRuntime
+=== PAUSE TestInspectSpeedUsesIsolatedConfigAndDoesNotMutateRuntime
+=== RUN   TestInspectSpeedProvidesEnoughTimeForRouterRun
+=== PAUSE TestInspectSpeedProvidesEnoughTimeForRouterRun
+=== RUN   TestInspectPingSingleNodeUsesOriginalAddressAndPort
+=== PAUSE TestInspectPingSingleNodeUsesOriginalAddressAndPort
+=== RUN   TestInspectPingSubscriptionKeepsStableNodeOrderOnMixedResults
+=== PAUSE TestInspectPingSubscriptionKeepsStableNodeOrderOnMixedResults
+=== RUN   TestInspectPingDoesNotMutateRuntimeState
+=== PAUSE TestInspectPingDoesNotMutateRuntimeState
+=== RUN   TestConnectManualLogsRuntimeEvents
+=== PAUSE TestConnectManualLogsRuntimeEvents
+=== RUN   TestConnectAutoLogsSelectionReason
+=== PAUSE TestConnectAutoLogsSelectionReason
+=== RUN   TestRestoreRuntimeLogsFailure
+=== PAUSE TestRestoreRuntimeLogsFailure
+=== RUN   TestRestoreRuntimeReappliesPersistedConnection
+=== PAUSE TestRestoreRuntimeReappliesPersistedConnection
+=== RUN   TestRestoreRuntimeFailureDisconnectsState
+=== PAUSE TestRestoreRuntimeFailureDisconnectsState
+=== RUN   TestSchedulerRunOnceRefreshesDueSubscription
+=== PAUSE TestSchedulerRunOnceRefreshesDueSubscription
+=== RUN   TestSchedulerRunOnceRefreshesAndReconnectsActiveSubscription
+=== PAUSE TestSchedulerRunOnceRefreshesAndReconnectsActiveSubscription
+=== RUN   TestSchedulerRunOnceKeepsActiveSubscriptionWhenCandidateVerifyFails
+=== PAUSE TestSchedulerRunOnceKeepsActiveSubscriptionWhenCandidateVerifyFails
+=== RUN   TestSchedulerHealthLoopConfigLogsRepeatedSettingsErrorOnce
+=== PAUSE TestSchedulerHealthLoopConfigLogsRepeatedSettingsErrorOnce
+=== RUN   TestSchedulerHealthLoopConfigLogsErrorAgainAfterRecovery
+=== PAUSE TestSchedulerHealthLoopConfigLogsErrorAgainAfterRecovery
+=== RUN   TestSchedulerRunOnceUsesLastRefreshAttemptAfterFailure
+=== PAUSE TestSchedulerRunOnceUsesLastRefreshAttemptAfterFailure
+=== RUN   TestConnectManualDisablesFirewallWhenBackendIsNotRunning
+=== PAUSE TestConnectManualDisablesFirewallWhenBackendIsNotRunning
+=== RUN   TestConnectManualWaitsForBackendToReachRunningState
+=== PAUSE TestConnectManualWaitsForBackendToReachRunningState
+=== RUN   TestDisconnectDisablesFirewall
+=== PAUSE TestDisconnectDisablesFirewall
+=== RUN   TestAddSubscriptionUsesStoreWriteLock
+=== PAUSE TestAddSubscriptionUsesStoreWriteLock
+=== RUN   TestRefreshAllUsesSingleStoreWriteLock
+=== PAUSE TestRefreshAllUsesSingleStoreWriteLock
+=== RUN   TestSetSettingAutoModeUsesSingleStoreWriteLock
+=== PAUSE TestSetSettingAutoModeUsesSingleStoreWriteLock
+=== RUN   TestConfigureFirewallHostsClearsDestinationTargets
+=== PAUSE TestConfigureFirewallHostsClearsDestinationTargets
+=== RUN   TestConfigureFirewallParsesMixedTargetsAndValidatesBeforeSave
+=== PAUSE TestConfigureFirewallParsesMixedTargetsAndValidatesBeforeSave
+=== RUN   TestConfigureFirewallClearsHostsAndStoresTargetSelectors
+=== PAUSE TestConfigureFirewallClearsHostsAndStoresTargetSelectors
+=== RUN   TestConfigureFirewallAntiTargetsClearsHostsAndStoresTargetSelectors
+=== PAUSE TestConfigureFirewallAntiTargetsClearsHostsAndStoresTargetSelectors
+=== RUN   TestConfigureFirewallBypassStoresExcludedSources
+=== PAUSE TestConfigureFirewallBypassStoresExcludedSources
+=== RUN   TestSetZapretEnabledRejectsEmptySelectors
+=== PAUSE TestSetZapretEnabledRejectsEmptySelectors
+=== RUN   TestSetZapretSelectorsAutoDisablesEmptySelectorsWhileEnabled
+=== PAUSE TestSetZapretSelectorsAutoDisablesEmptySelectorsWhileEnabled
+=== RUN   TestUpdateFirewallBlockQUICCanonicalizesLegacyTargetsMode
+=== PAUSE TestUpdateFirewallBlockQUICCanonicalizesLegacyTargetsMode
+=== RUN   TestUpdateFirewallDisableIPv6StoresSettingAndAppliesManager
+=== PAUSE TestUpdateFirewallDisableIPv6StoresSettingAndAppliesManager
+=== RUN   TestConnectManualReappliesManagedIPv6Disable
+=== PAUSE TestConnectManualReappliesManagedIPv6Disable
+=== RUN   TestRestoreRuntimeReappliesManagedIPv6DisableWhileDisconnected
+=== PAUSE TestRestoreRuntimeReappliesManagedIPv6DisableWhileDisconnected
+=== RUN   TestConfigureFirewallSupportsCustomServiceAliases
+=== PAUSE TestConfigureFirewallSupportsCustomServiceAliases
+=== RUN   TestConfigureFirewallHostsPreservesTargetServiceCatalog
+=== PAUSE TestConfigureFirewallHostsPreservesTargetServiceCatalog
+=== RUN   TestUpdateFirewallModeDraftDoesNotAffectActiveSettings
+=== PAUSE TestUpdateFirewallModeDraftDoesNotAffectActiveSettings
+=== RUN   TestConfigureFirewallPreservesModeDraftsAcrossModeSwitches
+=== PAUSE TestConfigureFirewallPreservesModeDraftsAcrossModeSwitches
+=== RUN   TestDisableFirewallPreservesModeDrafts
+=== PAUSE TestDisableFirewallPreservesModeDrafts
+=== RUN   TestSetFirewallTargetServiceReappliesConnectedRuntime
+=== PAUSE TestSetFirewallTargetServiceReappliesConnectedRuntime
+=== RUN   TestSetFirewallTargetServiceSkipsReapplyForUnusedAlias
+=== PAUSE TestSetFirewallTargetServiceSkipsReapplyForUnusedAlias
+=== RUN   TestDeleteFirewallTargetServiceRejectsUsedAlias
+=== PAUSE TestDeleteFirewallTargetServiceRejectsUsedAlias
+=== RUN   TestDeleteFirewallTargetServiceSkipsReapplyForUnusedAlias
+=== PAUSE TestDeleteFirewallTargetServiceSkipsReapplyForUnusedAlias
+=== RUN   TestDeleteFirewallTargetServiceRejectsReferencedCompositeAlias
+=== PAUSE TestDeleteFirewallTargetServiceRejectsReferencedCompositeAlias
+=== RUN   TestAddSubscriptionRetriesTransientHTTPStatus
+=== PAUSE TestAddSubscriptionRetriesTransientHTTPStatus
+=== RUN   TestAddSubscriptionUsesCompatibleUserAgent
+=== PAUSE TestAddSubscriptionUsesCompatibleUserAgent
+=== RUN   TestAddSubscriptionRetriesWithCookieJar
+=== PAUSE TestAddSubscriptionRetriesWithCookieJar
+=== RUN   TestAddSubscriptionUsesProfileTitleHeaderForProviderName
+=== PAUSE TestAddSubscriptionUsesProfileTitleHeaderForProviderName
+=== RUN   TestAddSubscriptionReadsExpirationFromSubscriptionUserinfo
+=== PAUSE TestAddSubscriptionReadsExpirationFromSubscriptionUserinfo
+=== RUN   TestAddSubscriptionIgnoresDDoSGuardCookieExpiry
+=== PAUSE TestAddSubscriptionIgnoresDDoSGuardCookieExpiry
+=== RUN   TestAddSubscriptionFallsBackToCurlUserAgentForMetadata
+=== PAUSE TestAddSubscriptionFallsBackToCurlUserAgentForMetadata
+=== RUN   TestAddSubscriptionKeepsManualProviderNameDespiteProfileTitle
+=== PAUSE TestAddSubscriptionKeepsManualProviderNameDespiteProfileTitle
+=== RUN   TestAddSubscriptionKeepsDistinctProfilesForSharedURL
+=== PAUSE TestAddSubscriptionKeepsDistinctProfilesForSharedURL
+=== RUN   TestAddSubscriptionKeepsDistinctProfilesForSharedURLWrapperLabels
+=== PAUSE TestAddSubscriptionKeepsDistinctProfilesForSharedURLWrapperLabels
+=== RUN   TestAddSubscriptionReusesIDForEquivalentSharedURL
+=== PAUSE TestAddSubscriptionReusesIDForEquivalentSharedURL
+=== RUN   TestAddSubscriptionReturnsJSONEndpointError
+=== PAUSE TestAddSubscriptionReturnsJSONEndpointError
+=== RUN   TestAddSubscriptionReturnsHTMLResponseError
+=== PAUSE TestAddSubscriptionReturnsHTMLResponseError
+=== RUN   TestAddSubscriptionRetriesTLS12AfterHandshakeTimeout
+=== PAUSE TestAddSubscriptionRetriesTLS12AfterHandshakeTimeout
+=== RUN   TestAddSubscriptionReturnsDDoSGuardError
+=== PAUSE TestAddSubscriptionReturnsDDoSGuardError
+=== RUN   TestAddSubscriptionExtractsHTMLShareLinksWithSpacesInRemark
+=== PAUSE TestAddSubscriptionExtractsHTMLShareLinksWithSpacesInRemark
+=== RUN   TestAddSubscriptionAcceptsDirectVLESSJSONConfig
+=== PAUSE TestAddSubscriptionAcceptsDirectVLESSJSONConfig
+=== RUN   TestRefreshSubscriptionUpdatesLegacyURLDerivedProviderNameFromProfileTitle
+=== PAUSE TestRefreshSubscriptionUpdatesLegacyURLDerivedProviderNameFromProfileTitle
+=== RUN   TestRefreshSubscriptionDoesNotOverrideManualProviderNameWithProfileTitle
+=== PAUSE TestRefreshSubscriptionDoesNotOverrideManualProviderNameWithProfileTitle
+=== RUN   TestRefreshSubscriptionUpdatesExpirationFromSubscriptionUserinfo
+=== PAUSE TestRefreshSubscriptionUpdatesExpirationFromSubscriptionUserinfo
+=== RUN   TestRefreshSubscriptionKeepsExistingExpiryWhenOnlyDDoSGuardCookieIsPresent
+=== PAUSE TestRefreshSubscriptionKeepsExistingExpiryWhenOnlyDDoSGuardCookieIsPresent
+=== RUN   TestRefreshSubscriptionClearsExpiredStaleExpiryWhenProviderOmitsIt
+=== PAUSE TestRefreshSubscriptionClearsExpiredStaleExpiryWhenProviderOmitsIt
+=== RUN   TestRefreshSubscriptionFallsBackToCurlUserAgentForMetadata
+=== PAUSE TestRefreshSubscriptionFallsBackToCurlUserAgentForMetadata
+=== RUN   TestRefreshSubscriptionUpgradesLegacyKeyVPNNameFromProfileTitle
+=== PAUSE TestRefreshSubscriptionUpgradesLegacyKeyVPNNameFromProfileTitle
+=== RUN   TestRefreshSubscriptionNormalizesLegacyRawHostNameWithoutProfileTitle
+=== PAUSE TestRefreshSubscriptionNormalizesLegacyRawHostNameWithoutProfileTitle
+=== RUN   TestConfigureFirewallHostsCanonicalizesAllAlias
+=== PAUSE TestConfigureFirewallHostsCanonicalizesAllAlias
+=== RUN   TestConfigureFirewallHostsPreservesBlockQUICSetting
+=== PAUSE TestConfigureFirewallHostsPreservesBlockQUICSetting
+=== RUN   TestConnectManualAppliesHostFirewallRouting
+=== PAUSE TestConnectManualAppliesHostFirewallRouting
+=== RUN   TestConnectManualAutoBlocksQUICForVLESSRealityTCPNodes
+=== PAUSE TestConnectManualAutoBlocksQUICForVLESSRealityTCPNodes
+=== RUN   TestConnectManualFailsWhenBackendEgressProbeFailsAndDisablesFirewall
+=== PAUSE TestConnectManualFailsWhenBackendEgressProbeFailsAndDisablesFirewall
+=== RUN   TestConnectManualRetriesBackendEgressProbeBeforeApplyingFirewall
+=== PAUSE TestConnectManualRetriesBackendEgressProbeBeforeApplyingFirewall
+=== RUN   TestConnectManualContinuesWhenBackendEgressProbeSucceeds
+=== PAUSE TestConnectManualContinuesWhenBackendEgressProbeSucceeds
+=== RUN   TestConnectManualPassesExpandedTargetSelectorsToBackend
+=== PAUSE TestConnectManualPassesExpandedTargetSelectorsToBackend
+=== RUN   TestConnectManualPassesExpandedAntiTargetSelectorsToBackend
+=== PAUSE TestConnectManualPassesExpandedAntiTargetSelectorsToBackend
+=== RUN   TestConnectManualPassesSelectiveCaptureForSplitDirect
+=== PAUSE TestConnectManualPassesSelectiveCaptureForSplitDirect
+=== RUN   TestGetSettingsSyncsConnectedRuntimeMode
+=== PAUSE TestGetSettingsSyncsConnectedRuntimeMode
+=== RUN   TestConnectManualResolvesNodeAddressBeforeApplyingBackendConfig
+=== PAUSE TestConnectManualResolvesNodeAddressBeforeApplyingBackendConfig
+=== RUN   TestConnectManualPrefersReachableResolvedIPv4Address
+=== PAUSE TestConnectManualPrefersReachableResolvedIPv4Address
+=== RUN   TestConnectManualFallsBackToFirstResolvedIPv4WhenAllProbesFail
+=== PAUSE TestConnectManualFallsBackToFirstResolvedIPv4WhenAllProbesFail
+=== RUN   TestRuntimeStatusReturnsBackendStatus
+=== PAUSE TestRuntimeStatusReturnsBackendStatus
+=== RUN   TestRuntimeStatusWithoutBackendReturnsZeroValue
+=== PAUSE TestRuntimeStatusWithoutBackendReturnsZeroValue
+=== RUN   TestSetSettingAutoModeTrueSwitchesCurrentConnection
+=== PAUSE TestSetSettingAutoModeTrueSwitchesCurrentConnection
+=== RUN   TestSetSettingAutoModeTrueKeepsCurrentNodeButUpdatesMode
+=== PAUSE TestSetSettingAutoModeTrueKeepsCurrentNodeButUpdatesMode
+=== RUN   TestSetSettingAutoModeFalsePinsCurrentNode
+=== PAUSE TestSetSettingAutoModeFalsePinsCurrentNode
+=== RUN   TestConnectAutoSkipsExcludedNodes
+=== PAUSE TestConnectAutoSkipsExcludedNodes
+=== RUN   TestSetSettingAutoExcludedNodesReconnectsAutoSelection
+=== PAUSE TestSetSettingAutoExcludedNodesReconnectsAutoSelection
+=== RUN   TestSetSettingRefreshIntervalUpdatesStoredSubscriptions
+=== PAUSE TestSetSettingRefreshIntervalUpdatesStoredSubscriptions
+=== RUN   TestSetSettingHWID
+=== PAUSE TestSetSettingHWID
+=== RUN   TestHWIDAutoGenerate
+=== PAUSE TestHWIDAutoGenerate
+=== RUN   TestSetSettingDNSFields
+=== PAUSE TestSetSettingDNSFields
+=== RUN   TestSetSettingDNSModeReappliesCurrentConnection
+=== PAUSE TestSetSettingDNSModeReappliesCurrentConnection
+=== RUN   TestApplyDefaultDNSReappliesCurrentConnection
+=== PAUSE TestApplyDefaultDNSReappliesCurrentConnection
+=== RUN   TestUpdateDNSReappliesCurrentConnectionOnce
+=== PAUSE TestUpdateDNSReappliesCurrentConnectionOnce
+=== RUN   TestConnectManualAppliesLocalDNSRuntime
+=== PAUSE TestConnectManualAppliesLocalDNSRuntime
+=== RUN   TestDisconnectDisablesDNSBeforeStoppingBackendAndFirewall
+=== PAUSE TestDisconnectDisablesDNSBeforeStoppingBackendAndFirewall
+=== RUN   TestConnectManualDNSManagerFailureTearsDownRuntime
+=== PAUSE TestConnectManualDNSManagerFailureTearsDownRuntime
+=== RUN   TestRefreshSubscriptionParsesJSONArrayOfConfigs
+=== PAUSE TestRefreshSubscriptionParsesJSONArrayOfConfigs
+=== RUN   TestRemoveSubscriptionDeletesInactiveSubscription
+=== PAUSE TestRemoveSubscriptionDeletesInactiveSubscription
+=== RUN   TestRemoveSubscriptionDisconnectsActiveSubscription
+=== PAUSE TestRemoveSubscriptionDisconnectsActiveSubscription
+=== RUN   TestRemoveAllSubscriptionsDisconnectsActiveSubscription
+=== PAUSE TestRemoveAllSubscriptionsDisconnectsActiveSubscription
+=== RUN   TestAddSubscriptionSavesToSharedServerList
+=== PAUSE TestAddSubscriptionSavesToSharedServerList
+=== RUN   TestRemoveSubscriptionNode
+=== PAUSE TestRemoveSubscriptionNode
+=== RUN   TestMoveSubscription
+=== PAUSE TestMoveSubscription
+=== RUN   TestConnectManualSelectsBestDuplicateNode
+=== PAUSE TestConnectManualSelectsBestDuplicateNode
+=== RUN   TestListNodesDeduplication
+=== PAUSE TestListNodesDeduplication
+=== RUN   TestSubscriptionByIDAcceptsUniquePrefix
+=== PAUSE TestSubscriptionByIDAcceptsUniquePrefix
+=== RUN   TestSubscriptionByIDRejectsAmbiguousPrefix
+=== PAUSE TestSubscriptionByIDRejectsAmbiguousPrefix
+=== RUN   TestSubscriptionByIDPrefersExactIDOverPrefixMatches
+=== PAUSE TestSubscriptionByIDPrefersExactIDOverPrefixMatches
+=== RUN   TestStartZapretTestActivatesManagedZapretAndStoresRestoreState
+=== PAUSE TestStartZapretTestActivatesManagedZapretAndStoresRestoreState
+=== RUN   TestStopZapretTestRestoresPreviousProxySelection
+=== PAUSE TestStopZapretTestRestoresPreviousProxySelection
+=== RUN   TestRunAutoHealthCheckSkipsWhileZapretTestIsActive
+=== PAUSE TestRunAutoHealthCheckSkipsWhileZapretTestIsActive
+=== CONT  TestConnectAutoUsesConfiguredSwitchCooldown
+=== CONT  TestAddSubscriptionFallsBackToCurlUserAgentForMetadata
+=== CONT  TestConnectManualDisablesFirewallWhenBackendIsNotRunning
+=== CONT  TestConfigureFirewallSupportsCustomServiceAliases
+--- PASS: TestConfigureFirewallSupportsCustomServiceAliases (0.00s)
+=== CONT  TestRunAutoHealthCheckSkipsWhileZapretTestIsActive
+--- PASS: TestRunAutoHealthCheckSkipsWhileZapretTestIsActive (0.00s)
+=== CONT  TestStopZapretTestRestoresPreviousProxySelection
+--- PASS: TestAddSubscriptionFallsBackToCurlUserAgentForMetadata (0.00s)
+=== CONT  TestStartZapretTestActivatesManagedZapretAndStoresRestoreState
+--- PASS: TestStartZapretTestActivatesManagedZapretAndStoresRestoreState (0.00s)
+=== CONT  TestSubscriptionByIDPrefersExactIDOverPrefixMatches
+--- PASS: TestSubscriptionByIDPrefersExactIDOverPrefixMatches (0.00s)
+=== CONT  TestSubscriptionByIDRejectsAmbiguousPrefix
+--- PASS: TestSubscriptionByIDRejectsAmbiguousPrefix (0.00s)
+=== CONT  TestSubscriptionByIDAcceptsUniquePrefix
+--- PASS: TestSubscriptionByIDAcceptsUniquePrefix (0.00s)
+=== CONT  TestListNodesDeduplication
+--- PASS: TestListNodesDeduplication (0.00s)
+=== CONT  TestConnectManualSelectsBestDuplicateNode
+--- PASS: TestStopZapretTestRestoresPreviousProxySelection (0.00s)
+=== CONT  TestMoveSubscription
+--- PASS: TestMoveSubscription (0.00s)
+=== CONT  TestRemoveSubscriptionNode
+--- PASS: TestRemoveSubscriptionNode (0.00s)
+=== CONT  TestAddSubscriptionSavesToSharedServerList
+--- PASS: TestAddSubscriptionSavesToSharedServerList (0.00s)
+=== CONT  TestRemoveAllSubscriptionsDisconnectsActiveSubscription
+--- PASS: TestRemoveAllSubscriptionsDisconnectsActiveSubscription (0.00s)
+=== CONT  TestRemoveSubscriptionDisconnectsActiveSubscription
+--- PASS: TestRemoveSubscriptionDisconnectsActiveSubscription (0.00s)
+=== CONT  TestRemoveSubscriptionDeletesInactiveSubscription
+--- PASS: TestRemoveSubscriptionDeletesInactiveSubscription (0.00s)
+=== CONT  TestRefreshSubscriptionParsesJSONArrayOfConfigs
+--- PASS: TestRefreshSubscriptionParsesJSONArrayOfConfigs (0.00s)
+=== CONT  TestConnectManualDNSManagerFailureTearsDownRuntime
+--- PASS: TestConnectManualDNSManagerFailureTearsDownRuntime (0.02s)
+--- PASS: TestConnectManualDisablesFirewallWhenBackendIsNotRunning (0.02s)
+--- PASS: TestConnectManualSelectsBestDuplicateNode (0.02s)
+=== CONT  TestConnectManualAppliesLocalDNSRuntime
+=== CONT  TestDisconnectDisablesDNSBeforeStoppingBackendAndFirewall
+--- PASS: TestDisconnectDisablesDNSBeforeStoppingBackendAndFirewall (0.00s)
+=== CONT  TestUpdateDNSReappliesCurrentConnectionOnce
+=== CONT  TestApplyDefaultDNSReappliesCurrentConnection
+--- PASS: TestConnectAutoUsesConfiguredSwitchCooldown (0.03s)
+=== CONT  TestSetSettingDNSModeReappliesCurrentConnection
+--- PASS: TestConnectManualAppliesLocalDNSRuntime (0.03s)
+--- PASS: TestApplyDefaultDNSReappliesCurrentConnection (0.03s)
+--- PASS: TestSetSettingDNSModeReappliesCurrentConnection (0.03s)
+--- PASS: TestUpdateDNSReappliesCurrentConnectionOnce (0.03s)
+=== CONT  TestSetSettingDNSFields
+--- PASS: TestSetSettingDNSFields (0.00s)
+=== CONT  TestSetSettingAutoExcludedNodesReconnectsAutoSelection
+=== CONT  TestSetSettingHWID
+--- PASS: TestSetSettingHWID (0.00s)
+=== CONT  TestConnectAutoSkipsExcludedNodes
+=== CONT  TestHWIDAutoGenerate
+--- PASS: TestHWIDAutoGenerate (0.00s)
+=== CONT  TestSetSettingAutoModeFalsePinsCurrentNode
+=== CONT  TestSetSettingRefreshIntervalUpdatesStoredSubscriptions
+--- PASS: TestSetSettingRefreshIntervalUpdatesStoredSubscriptions (0.00s)
+=== CONT  TestSetSettingAutoModeTrueKeepsCurrentNodeButUpdatesMode
+--- PASS: TestSetSettingAutoModeFalsePinsCurrentNode (0.01s)
+=== CONT  TestSetSettingAutoModeTrueSwitchesCurrentConnection
+--- PASS: TestSetSettingAutoModeTrueSwitchesCurrentConnection (0.02s)
+=== CONT  TestRuntimeStatusWithoutBackendReturnsZeroValue
+--- PASS: TestRuntimeStatusWithoutBackendReturnsZeroValue (0.00s)
+=== CONT  TestRuntimeStatusReturnsBackendStatus
+--- PASS: TestRuntimeStatusReturnsBackendStatus (0.00s)
+=== CONT  TestConnectManualFallsBackToFirstResolvedIPv4WhenAllProbesFail
+--- PASS: TestConnectManualFallsBackToFirstResolvedIPv4WhenAllProbesFail (0.00s)
+=== CONT  TestConnectManualPrefersReachableResolvedIPv4Address
+--- PASS: TestConnectManualPrefersReachableResolvedIPv4Address (0.00s)
+=== CONT  TestConnectManualResolvesNodeAddressBeforeApplyingBackendConfig
+--- PASS: TestConnectManualResolvesNodeAddressBeforeApplyingBackendConfig (0.00s)
+=== CONT  TestGetSettingsSyncsConnectedRuntimeMode
+--- PASS: TestGetSettingsSyncsConnectedRuntimeMode (0.00s)
+=== CONT  TestConnectManualPassesSelectiveCaptureForSplitDirect
+--- PASS: TestConnectAutoSkipsExcludedNodes (0.04s)
+=== CONT  TestConnectManualPassesExpandedAntiTargetSelectorsToBackend
+--- PASS: TestSetSettingAutoExcludedNodesReconnectsAutoSelection (0.04s)
+=== CONT  TestConnectManualPassesExpandedTargetSelectorsToBackend
+--- PASS: TestSetSettingAutoModeTrueKeepsCurrentNodeButUpdatesMode (0.04s)
+=== CONT  TestConnectManualContinuesWhenBackendEgressProbeSucceeds
+--- PASS: TestConnectManualContinuesWhenBackendEgressProbeSucceeds (0.00s)
+=== CONT  TestConnectManualRetriesBackendEgressProbeBeforeApplyingFirewall
+--- PASS: TestConnectManualPassesSelectiveCaptureForSplitDirect (0.01s)
+=== CONT  TestConnectManualAutoBlocksQUICForVLESSRealityTCPNodes
+--- PASS: TestConnectManualPassesExpandedAntiTargetSelectorsToBackend (0.01s)
+--- PASS: TestConnectManualPassesExpandedTargetSelectorsToBackend (0.01s)
+=== CONT  TestConnectManualFailsWhenBackendEgressProbeFailsAndDisablesFirewall
+=== CONT  TestConnectManualAppliesHostFirewallRouting
+--- PASS: TestConnectManualAppliesHostFirewallRouting (0.03s)
+--- PASS: TestConnectManualAutoBlocksQUICForVLESSRealityTCPNodes (0.03s)
+=== CONT  TestConfigureFirewallHostsPreservesBlockQUICSetting
+=== CONT  TestConfigureFirewallHostsCanonicalizesAllAlias
+--- PASS: TestConfigureFirewallHostsCanonicalizesAllAlias (0.00s)
+=== CONT  TestRefreshSubscriptionUpgradesLegacyKeyVPNNameFromProfileTitle
+=== CONT  TestRefreshSubscriptionNormalizesLegacyRawHostNameWithoutProfileTitle
+--- PASS: TestConfigureFirewallHostsPreservesBlockQUICSetting (0.00s)
+--- PASS: TestRefreshSubscriptionUpgradesLegacyKeyVPNNameFromProfileTitle (0.00s)
+=== CONT  TestRefreshSubscriptionFallsBackToCurlUserAgentForMetadata
+--- PASS: TestRefreshSubscriptionFallsBackToCurlUserAgentForMetadata (0.00s)
+=== CONT  TestRefreshSubscriptionClearsExpiredStaleExpiryWhenProviderOmitsIt
+--- PASS: TestConnectManualRetriesBackendEgressProbeBeforeApplyingFirewall (0.03s)
+=== CONT  TestRefreshSubscriptionKeepsExistingExpiryWhenOnlyDDoSGuardCookieIsPresent
+--- PASS: TestRefreshSubscriptionNormalizesLegacyRawHostNameWithoutProfileTitle (0.00s)
+=== CONT  TestRefreshSubscriptionUpdatesExpirationFromSubscriptionUserinfo
+--- PASS: TestRefreshSubscriptionClearsExpiredStaleExpiryWhenProviderOmitsIt (0.00s)
+=== CONT  TestRefreshSubscriptionDoesNotOverrideManualProviderNameWithProfileTitle
+--- PASS: TestRefreshSubscriptionUpdatesExpirationFromSubscriptionUserinfo (0.00s)
+=== CONT  TestRefreshSubscriptionUpdatesLegacyURLDerivedProviderNameFromProfileTitle
+--- PASS: TestRefreshSubscriptionKeepsExistingExpiryWhenOnlyDDoSGuardCookieIsPresent (0.00s)
+=== CONT  TestAddSubscriptionAcceptsDirectVLESSJSONConfig
+--- PASS: TestAddSubscriptionAcceptsDirectVLESSJSONConfig (0.00s)
+=== CONT  TestAddSubscriptionExtractsHTMLShareLinksWithSpacesInRemark
+--- PASS: TestRefreshSubscriptionDoesNotOverrideManualProviderNameWithProfileTitle (0.00s)
+=== CONT  TestAddSubscriptionReturnsDDoSGuardError
+--- PASS: TestRefreshSubscriptionUpdatesLegacyURLDerivedProviderNameFromProfileTitle (0.00s)
+=== CONT  TestAddSubscriptionRetriesTLS12AfterHandshakeTimeout
+--- PASS: TestAddSubscriptionRetriesTLS12AfterHandshakeTimeout (0.00s)
+=== CONT  TestAddSubscriptionReturnsHTMLResponseError
+--- PASS: TestAddSubscriptionExtractsHTMLShareLinksWithSpacesInRemark (0.00s)
+=== CONT  TestAddSubscriptionReturnsJSONEndpointError
+--- PASS: TestConnectManualFailsWhenBackendEgressProbeFailsAndDisablesFirewall (0.04s)
+=== CONT  TestAddSubscriptionReusesIDForEquivalentSharedURL
+--- PASS: TestAddSubscriptionReturnsHTMLResponseError (0.00s)
+=== CONT  TestAddSubscriptionKeepsDistinctProfilesForSharedURLWrapperLabels
+--- PASS: TestAddSubscriptionReusesIDForEquivalentSharedURL (0.00s)
+=== CONT  TestAddSubscriptionKeepsDistinctProfilesForSharedURL
+--- PASS: TestAddSubscriptionReturnsJSONEndpointError (0.00s)
+=== CONT  TestAddSubscriptionKeepsManualProviderNameDespiteProfileTitle
+--- PASS: TestAddSubscriptionKeepsDistinctProfilesForSharedURLWrapperLabels (0.00s)
+=== CONT  TestConnectManualReappliesManagedIPv6Disable
+=== CONT  TestUpdateFirewallDisableIPv6StoresSettingAndAppliesManager
+=== CONT  TestUpdateFirewallBlockQUICCanonicalizesLegacyTargetsMode
+=== CONT  TestSetZapretSelectorsAutoDisablesEmptySelectorsWhileEnabled
+=== CONT  TestRestoreRuntimeReappliesManagedIPv6DisableWhileDisconnected
+--- PASS: TestAddSubscriptionKeepsManualProviderNameDespiteProfileTitle (0.00s)
+--- PASS: TestAddSubscriptionKeepsDistinctProfilesForSharedURL (0.00s)
+--- PASS: TestUpdateFirewallDisableIPv6StoresSettingAndAppliesManager (0.00s)
+--- PASS: TestUpdateFirewallBlockQUICCanonicalizesLegacyTargetsMode (0.00s)
+--- PASS: TestSetZapretSelectorsAutoDisablesEmptySelectorsWhileEnabled (0.00s)
+--- PASS: TestRestoreRuntimeReappliesManagedIPv6DisableWhileDisconnected (0.00s)
+=== CONT  TestConfigureFirewallBypassStoresExcludedSources
+--- PASS: TestConfigureFirewallBypassStoresExcludedSources (0.00s)
+=== CONT  TestSetZapretEnabledRejectsEmptySelectors
+--- PASS: TestSetZapretEnabledRejectsEmptySelectors (0.00s)
+=== CONT  TestConfigureFirewallAntiTargetsClearsHostsAndStoresTargetSelectors
+--- PASS: TestConfigureFirewallAntiTargetsClearsHostsAndStoresTargetSelectors (0.00s)
+=== CONT  TestConfigureFirewallParsesMixedTargetsAndValidatesBeforeSave
+=== CONT  TestConfigureFirewallClearsHostsAndStoresTargetSelectors
+--- PASS: TestConfigureFirewallClearsHostsAndStoresTargetSelectors (0.00s)
+=== CONT  TestConfigureFirewallHostsClearsDestinationTargets
+--- PASS: TestConfigureFirewallHostsClearsDestinationTargets (0.00s)
+=== CONT  TestSetSettingAutoModeUsesSingleStoreWriteLock
+--- PASS: TestConfigureFirewallParsesMixedTargetsAndValidatesBeforeSave (0.00s)
+=== CONT  TestRefreshAllUsesSingleStoreWriteLock
+--- PASS: TestRefreshAllUsesSingleStoreWriteLock (0.00s)
+=== CONT  TestAddSubscriptionUsesStoreWriteLock
+--- PASS: TestAddSubscriptionUsesStoreWriteLock (0.00s)
+=== CONT  TestDisconnectDisablesFirewall
+--- PASS: TestDisconnectDisablesFirewall (0.00s)
+=== CONT  TestConnectManualWaitsForBackendToReachRunningState
+--- PASS: TestConnectManualWaitsForBackendToReachRunningState (0.02s)
+=== CONT  TestDeleteFirewallTargetServiceSkipsReapplyForUnusedAlias
+=== CONT  TestAddSubscriptionReadsExpirationFromSubscriptionUserinfo
+--- PASS: TestConnectManualReappliesManagedIPv6Disable (0.02s)
+--- PASS: TestDeleteFirewallTargetServiceSkipsReapplyForUnusedAlias (0.00s)
+=== CONT  TestAddSubscriptionIgnoresDDoSGuardCookieExpiry
+--- PASS: TestSetSettingAutoModeUsesSingleStoreWriteLock (0.02s)
+=== CONT  TestAddSubscriptionUsesProfileTitleHeaderForProviderName
+--- PASS: TestAddSubscriptionUsesProfileTitleHeaderForProviderName (0.00s)
+--- PASS: TestAddSubscriptionReadsExpirationFromSubscriptionUserinfo (0.00s)
+=== CONT  TestAddSubscriptionRetriesWithCookieJar
+=== CONT  TestAddSubscriptionRetriesTransientHTTPStatus
+--- PASS: TestAddSubscriptionIgnoresDDoSGuardCookieExpiry (0.00s)
+=== CONT  TestAddSubscriptionUsesCompatibleUserAgent
+--- PASS: TestAddSubscriptionUsesCompatibleUserAgent (0.00s)
+=== CONT  TestDeleteFirewallTargetServiceRejectsReferencedCompositeAlias
+--- PASS: TestDeleteFirewallTargetServiceRejectsReferencedCompositeAlias (0.00s)
+=== CONT  TestInspectSpeedUsesIsolatedConfigAndDoesNotMutateRuntime
+=== CONT  TestSchedulerRunOnceUsesLastRefreshAttemptAfterFailure
+--- PASS: TestInspectSpeedUsesIsolatedConfigAndDoesNotMutateRuntime (0.00s)
+--- PASS: TestAddSubscriptionRetriesTransientHTTPStatus (0.25s)
+=== CONT  TestSchedulerHealthLoopConfigLogsErrorAgainAfterRecovery
+--- PASS: TestAddSubscriptionRetriesWithCookieJar (0.25s)
+=== CONT  TestSchedulerHealthLoopConfigLogsRepeatedSettingsErrorOnce
+--- PASS: TestSchedulerHealthLoopConfigLogsRepeatedSettingsErrorOnce (0.00s)
+=== CONT  TestSchedulerRunOnceKeepsActiveSubscriptionWhenCandidateVerifyFails
+=== CONT  TestSchedulerRunOnceRefreshesAndReconnectsActiveSubscription
+--- PASS: TestSchedulerHealthLoopConfigLogsErrorAgainAfterRecovery (0.00s)
+--- PASS: TestSchedulerRunOnceRefreshesAndReconnectsActiveSubscription (0.41s)
+=== CONT  TestSchedulerRunOnceRefreshesDueSubscription
+--- PASS: TestSchedulerRunOnceKeepsActiveSubscriptionWhenCandidateVerifyFails (0.41s)
+=== CONT  TestRestoreRuntimeFailureDisconnectsState
+--- PASS: TestRestoreRuntimeFailureDisconnectsState (0.00s)
+=== CONT  TestRestoreRuntimeReappliesPersistedConnection
+--- PASS: TestRestoreRuntimeReappliesPersistedConnection (0.00s)
+=== CONT  TestRestoreRuntimeLogsFailure
+--- PASS: TestRestoreRuntimeLogsFailure (0.00s)
+=== CONT  TestConnectAutoLogsSelectionReason
+--- PASS: TestConnectAutoLogsSelectionReason (0.02s)
+=== CONT  TestConnectManualLogsRuntimeEvents
+--- PASS: TestConnectManualLogsRuntimeEvents (0.00s)
+=== CONT  TestInspectPingDoesNotMutateRuntimeState
+--- PASS: TestInspectPingDoesNotMutateRuntimeState (0.00s)
+=== CONT  TestInspectPingSubscriptionKeepsStableNodeOrderOnMixedResults
+--- PASS: TestInspectPingSubscriptionKeepsStableNodeOrderOnMixedResults (0.00s)
+=== CONT  TestInspectPingSingleNodeUsesOriginalAddressAndPort
+--- PASS: TestInspectPingSingleNodeUsesOriginalAddressAndPort (0.00s)
+=== CONT  TestInspectSpeedProvidesEnoughTimeForRouterRun
+--- PASS: TestInspectSpeedProvidesEnoughTimeForRouterRun (0.00s)
+=== CONT  TestDisableFirewallPreservesModeDrafts
+--- PASS: TestDisableFirewallPreservesModeDrafts (0.00s)
+=== CONT  TestDeleteFirewallTargetServiceRejectsUsedAlias
+--- PASS: TestDeleteFirewallTargetServiceRejectsUsedAlias (0.00s)
+=== CONT  TestSetFirewallTargetServiceSkipsReapplyForUnusedAlias
+--- PASS: TestSetFirewallTargetServiceSkipsReapplyForUnusedAlias (0.00s)
+=== CONT  TestSetFirewallTargetServiceReappliesConnectedRuntime
+--- PASS: TestSetFirewallTargetServiceReappliesConnectedRuntime (0.02s)
+=== CONT  TestSchedulerRunHealthOnceSwitchesWhenCurrentRuntimeEgressFails
+--- PASS: TestAddSubscriptionReturnsDDoSGuardError (0.75s)
+=== CONT  TestInspectXrayConfigDoesNotApplyRuntimeOrMutateState
+--- PASS: TestInspectXrayConfigDoesNotApplyRuntimeOrMutateState (0.00s)
+=== CONT  TestInspectXrayConfigUsesOriginalAddressAndCurrentSettings
+--- PASS: TestInspectXrayConfigUsesOriginalAddressAndCurrentSettings (0.00s)
+=== CONT  TestSchedulerRunHealthOnceMarksFailureAfterThresholdBreach
+--- PASS: TestSchedulerRunHealthOnceMarksFailureAfterThresholdBreach (0.00s)
+=== CONT  TestSchedulerRunHealthOnceRecoversDisconnectedAutoMode
+--- PASS: TestSchedulerRunHealthOnceRecoversDisconnectedAutoMode (0.01s)
+=== CONT  TestSchedulerRunHealthOnceHonorsConfiguredCooldown
+--- PASS: TestSchedulerRunHealthOnceHonorsConfiguredCooldown (0.00s)
+=== CONT  TestSchedulerRunHealthOnceFallsBackToDirectWhenZapretIsUnmanaged
+--- PASS: TestSchedulerRunHealthOnceSwitchesWhenCurrentRuntimeEgressFails (0.03s)
+=== CONT  TestUpdateFirewallModeDraftDoesNotAffectActiveSettings
+--- PASS: TestSchedulerRunHealthOnceFallsBackToDirectWhenZapretIsUnmanaged (0.00s)
+=== CONT  TestSchedulerRunHealthOnceFailsBackFromZapretAfterStableProxyRecovery
+--- PASS: TestUpdateFirewallModeDraftDoesNotAffectActiveSettings (0.00s)
+=== CONT  TestConfigureFirewallPreservesModeDraftsAcrossModeSwitches
+--- PASS: TestConfigureFirewallPreservesModeDraftsAcrossModeSwitches (0.00s)
+=== CONT  TestSchedulerRunHealthOnceBuffersRepeatedHealthyStateWrites
+--- PASS: TestSchedulerRunHealthOnceBuffersRepeatedHealthyStateWrites (0.00s)
+=== CONT  TestSchedulerRunHealthOnceKeepsCurrentNodeWhenCandidateVerifyFails
+--- PASS: TestSchedulerRunHealthOnceFailsBackFromZapretAfterStableProxyRecovery (0.03s)
+=== CONT  TestSchedulerRunHealthOnceSwitchesAfterFailureThresholdBreach
+--- PASS: TestSchedulerRunHealthOnceKeepsCurrentNodeWhenCandidateVerifyFails (0.04s)
+=== CONT  TestSchedulerRunHealthOnceKeepsCurrentNodeOnTransientFailure
+--- PASS: TestSchedulerRunHealthOnceKeepsCurrentNodeOnTransientFailure (0.00s)
+=== CONT  TestConnectAutoActivatesZapretWhenNoHealthyNodesRemain
+--- PASS: TestConnectAutoActivatesZapretWhenNoHealthyNodesRemain (0.00s)
+=== CONT  TestSchedulerRunHealthOnceSkipsSwitchWhenImprovementBelowThreshold
+--- PASS: TestSchedulerRunHealthOnceSkipsSwitchWhenImprovementBelowThreshold (0.00s)
+=== CONT  TestConfigureFirewallHostsPreservesTargetServiceCatalog
+--- PASS: TestConfigureFirewallHostsPreservesTargetServiceCatalog (0.00s)
+=== CONT  TestConnectAutoPrefersLowerLatencyOverInflatedHistory
+--- PASS: TestConnectAutoPrefersLowerLatencyOverInflatedHistory (0.01s)
+--- PASS: TestSchedulerRunHealthOnceSwitchesAfterFailureThresholdBreach (0.01s)
+--- PASS: TestSchedulerRunOnceRefreshesDueSubscription (0.15s)
+--- PASS: TestSchedulerRunOnceUsesLastRefreshAttemptAfterFailure (1.35s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/app	1.532s
+=== RUN   TestGenerateManualVLESSConfig
+=== PAUSE TestGenerateManualVLESSConfig
+=== RUN   TestGenerateSplitDoHConfig
+=== PAUSE TestGenerateSplitDoHConfig
+=== RUN   TestGenerateDoTConfigFails
+=== PAUSE TestGenerateDoTConfigFails
+=== RUN   TestGenerateTransparentVLESSConfig
+=== PAUSE TestGenerateTransparentVLESSConfig
+=== RUN   TestGenerateTransparentConfigRoutesDNSUpstreamsDirect
+=== PAUSE TestGenerateTransparentConfigRoutesDNSUpstreamsDirect
+=== RUN   TestGenerateTransparentConfigAddsSeparateUDPInboundAndQUICSniffing
+=== PAUSE TestGenerateTransparentConfigAddsSeparateUDPInboundAndQUICSniffing
+=== RUN   TestGenerateTransparentConfigBlocksUDPWhenQUICBlockingEnabled
+=== PAUSE TestGenerateTransparentConfigBlocksUDPWhenQUICBlockingEnabled
+=== RUN   TestGenerateTransparentTargetRoutingOnlySelectsMatchedServices
+=== PAUSE TestGenerateTransparentTargetRoutingOnlySelectsMatchedServices
+=== RUN   TestGenerateTransparentTargetRoutingBlocksMatchedUDPWhenConfigured
+=== PAUSE TestGenerateTransparentTargetRoutingBlocksMatchedUDPWhenConfigured
+=== RUN   TestGenerateTransparentSelectiveTargetRoutingFallsBackToSelected
+=== PAUSE TestGenerateTransparentSelectiveTargetRoutingFallsBackToSelected
+=== RUN   TestGenerateTransparentSelectiveSplitRoutingKeepsBypassDirect
+=== PAUSE TestGenerateTransparentSelectiveSplitRoutingKeepsBypassDirect
+=== RUN   TestGenerateTransparentBypassRoutingKeepsMatchedServicesDirect
+=== PAUSE TestGenerateTransparentBypassRoutingKeepsMatchedServicesDirect
+=== RUN   TestGenerateTransparentBypassRoutingBlocksFallbackUDPWhenConfigured
+=== PAUSE TestGenerateTransparentBypassRoutingBlocksFallbackUDPWhenConfigured
+=== CONT  TestGenerateManualVLESSConfig
+--- PASS: TestGenerateManualVLESSConfig (0.00s)
+=== CONT  TestGenerateTransparentBypassRoutingBlocksFallbackUDPWhenConfigured
+--- PASS: TestGenerateTransparentBypassRoutingBlocksFallbackUDPWhenConfigured (0.00s)
+=== CONT  TestGenerateTransparentBypassRoutingKeepsMatchedServicesDirect
+--- PASS: TestGenerateTransparentBypassRoutingKeepsMatchedServicesDirect (0.00s)
+=== CONT  TestGenerateTransparentSelectiveSplitRoutingKeepsBypassDirect
+--- PASS: TestGenerateTransparentSelectiveSplitRoutingKeepsBypassDirect (0.00s)
+=== CONT  TestGenerateTransparentConfigAddsSeparateUDPInboundAndQUICSniffing
+=== CONT  TestGenerateTransparentSelectiveTargetRoutingFallsBackToSelected
+--- PASS: TestGenerateTransparentSelectiveTargetRoutingFallsBackToSelected (0.00s)
+=== CONT  TestGenerateTransparentConfigBlocksUDPWhenQUICBlockingEnabled
+--- PASS: TestGenerateTransparentConfigBlocksUDPWhenQUICBlockingEnabled (0.00s)
+=== CONT  TestGenerateTransparentVLESSConfig
+--- PASS: TestGenerateTransparentVLESSConfig (0.00s)
+=== CONT  TestGenerateTransparentConfigRoutesDNSUpstreamsDirect
+--- PASS: TestGenerateTransparentConfigRoutesDNSUpstreamsDirect (0.00s)
+=== CONT  TestGenerateDoTConfigFails
+--- PASS: TestGenerateDoTConfigFails (0.00s)
+=== CONT  TestGenerateSplitDoHConfig
+--- PASS: TestGenerateSplitDoHConfig (0.00s)
+=== CONT  TestGenerateTransparentTargetRoutingBlocksMatchedUDPWhenConfigured
+--- PASS: TestGenerateTransparentTargetRoutingBlocksMatchedUDPWhenConfigured (0.00s)
+=== CONT  TestGenerateTransparentTargetRoutingOnlySelectsMatchedServices
+--- PASS: TestGenerateTransparentTargetRoutingOnlySelectsMatchedServices (0.00s)
+--- PASS: TestGenerateTransparentConfigAddsSeparateUDPInboundAndQUICSniffing (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/backend	0.006s
+=== RUN   TestFormatDNSServersSupportsPlainAndDoH
+=== PAUSE TestFormatDNSServersSupportsPlainAndDoH
+=== RUN   TestDNSBootstrapDomainsAndDirectDestinations
+=== PAUSE TestDNSBootstrapDomainsAndDirectDestinations
+=== RUN   TestOutboundForNodeSupportsVMessAndTrojan
+=== PAUSE TestOutboundForNodeSupportsVMessAndTrojan
+=== RUN   TestGeneratorHandlesSplitDNSAndSelectedNodeErrors
+=== PAUSE TestGeneratorHandlesSplitDNSAndSelectedNodeErrors
+=== RUN   TestGeneratorAddsLocalDNSRuntime
+=== PAUSE TestGeneratorAddsLocalDNSRuntime
+=== RUN   TestInitdControllerCommandsAndRuntimeBackendDelegation
+=== PAUSE TestInitdControllerCommandsAndRuntimeBackendDelegation
+=== RUN   TestGeoRoutingRules
+=== PAUSE TestGeoRoutingRules
+=== RUN   TestRuntimeBackendApplyConfigValidationFailureKeepsLiveConfig
+=== PAUSE TestRuntimeBackendApplyConfigValidationFailureKeepsLiveConfig
+=== RUN   TestCandidateConfigPatternKeepsExtension
+=== PAUSE TestCandidateConfigPatternKeepsExtension
+=== RUN   TestRuntimeBackendApplyConfigReloadFailureRollsBack
+=== PAUSE TestRuntimeBackendApplyConfigReloadFailureRollsBack
+=== RUN   TestRuntimeBackendApplyConfigRollbackReloadFailureIncludesRollbackError
+=== PAUSE TestRuntimeBackendApplyConfigRollbackReloadFailureIncludesRollbackError
+=== RUN   TestRuntimeBackendApplyConfigSuccessUpdatesLastKnownGood
+=== PAUSE TestRuntimeBackendApplyConfigSuccessUpdatesLastKnownGood
+=== RUN   TestRuntimeBackendApplyConfigReloadFailureWithoutRollbackRemovesBrokenConfig
+=== PAUSE TestRuntimeBackendApplyConfigReloadFailureWithoutRollbackRemovesBrokenConfig
+=== RUN   TestRuntimeBackendRollbackConfigRestoresCapturedSnapshot
+=== PAUSE TestRuntimeBackendRollbackConfigRestoresCapturedSnapshot
+=== RUN   TestInitdControllerStatusDetectsActiveWithNoInstances
+=== PAUSE TestInitdControllerStatusDetectsActiveWithNoInstances
+=== RUN   TestInitdControllerStatusDetectsRunningProcess
+=== PAUSE TestInitdControllerStatusDetectsRunningProcess
+=== RUN   TestInitdControllerStatusTreatsUnknownAsNotRunning
+=== PAUSE TestInitdControllerStatusTreatsUnknownAsNotRunning
+=== RUN   TestInitdControllerStatusTreatsUnrecognizedOutputAsNotRunning
+=== PAUSE TestInitdControllerStatusTreatsUnrecognizedOutputAsNotRunning
+=== RUN   TestRuntimeBackendStatusUsesConfigPath
+=== PAUSE TestRuntimeBackendStatusUsesConfigPath
+=== RUN   TestCommandTesterRejectsEmptyConfigPath
+=== PAUSE TestCommandTesterRejectsEmptyConfigPath
+=== RUN   TestCommandTesterRunsConfiguredBinary
+=== PAUSE TestCommandTesterRunsConfiguredBinary
+=== RUN   TestCommandTesterReturnsCommandOutputOnFailure
+=== PAUSE TestCommandTesterReturnsCommandOutputOnFailure
+=== RUN   TestNewCommandTesterUsesEnvironmentBinaryPath
+=== PAUSE TestNewCommandTesterUsesEnvironmentBinaryPath
+=== RUN   TestFileWriterWritePersistsRawJSON
+=== PAUSE TestFileWriterWritePersistsRawJSON
+=== CONT  TestFormatDNSServersSupportsPlainAndDoH
+--- PASS: TestFormatDNSServersSupportsPlainAndDoH (0.00s)
+=== CONT  TestFileWriterWritePersistsRawJSON
+=== CONT  TestRuntimeBackendApplyConfigReloadFailureWithoutRollbackRemovesBrokenConfig
+=== CONT  TestInitdControllerCommandsAndRuntimeBackendDelegation
+=== CONT  TestNewCommandTesterUsesEnvironmentBinaryPath
+--- PASS: TestRuntimeBackendApplyConfigReloadFailureWithoutRollbackRemovesBrokenConfig (0.02s)
+=== CONT  TestGeoRoutingRules
+--- PASS: TestGeoRoutingRules (0.00s)
+=== CONT  TestRuntimeBackendApplyConfigSuccessUpdatesLastKnownGood
+--- PASS: TestNewCommandTesterUsesEnvironmentBinaryPath (0.02s)
+=== CONT  TestRuntimeBackendApplyConfigRollbackReloadFailureIncludesRollbackError
+--- PASS: TestFileWriterWritePersistsRawJSON (0.02s)
+=== CONT  TestRuntimeBackendApplyConfigReloadFailureRollsBack
+--- PASS: TestRuntimeBackendApplyConfigSuccessUpdatesLastKnownGood (0.01s)
+=== CONT  TestCandidateConfigPatternKeepsExtension
+=== RUN   TestCandidateConfigPatternKeepsExtension/config.json
+=== PAUSE TestCandidateConfigPatternKeepsExtension/config.json
+=== RUN   TestCandidateConfigPatternKeepsExtension/config
+=== PAUSE TestCandidateConfigPatternKeepsExtension/config
+=== RUN   TestCandidateConfigPatternKeepsExtension/config.generated.json
+=== PAUSE TestCandidateConfigPatternKeepsExtension/config.generated.json
+=== CONT  TestRuntimeBackendApplyConfigValidationFailureKeepsLiveConfig
+--- PASS: TestRuntimeBackendApplyConfigValidationFailureKeepsLiveConfig (0.00s)
+=== CONT  TestInitdControllerStatusTreatsUnrecognizedOutputAsNotRunning
+--- PASS: TestRuntimeBackendApplyConfigReloadFailureRollsBack (0.00s)
+--- PASS: TestRuntimeBackendApplyConfigRollbackReloadFailureIncludesRollbackError (0.01s)
+--- PASS: TestInitdControllerStatusTreatsUnrecognizedOutputAsNotRunning (0.00s)
+--- PASS: TestInitdControllerCommandsAndRuntimeBackendDelegation (0.02s)
+=== CONT  TestCommandTesterRunsConfiguredBinary
+=== CONT  TestCommandTesterReturnsCommandOutputOnFailure
+--- PASS: TestCommandTesterReturnsCommandOutputOnFailure (0.00s)
+=== CONT  TestGeneratorHandlesSplitDNSAndSelectedNodeErrors
+--- PASS: TestGeneratorHandlesSplitDNSAndSelectedNodeErrors (0.00s)
+--- PASS: TestCommandTesterRunsConfiguredBinary (0.00s)
+=== CONT  TestOutboundForNodeSupportsVMessAndTrojan
+--- PASS: TestOutboundForNodeSupportsVMessAndTrojan (0.00s)
+=== CONT  TestInitdControllerStatusDetectsRunningProcess
+=== CONT  TestRuntimeBackendStatusUsesConfigPath
+=== CONT  TestCommandTesterRejectsEmptyConfigPath
+--- PASS: TestCommandTesterRejectsEmptyConfigPath (0.00s)
+=== CONT  TestInitdControllerStatusTreatsUnknownAsNotRunning
+=== CONT  TestGeneratorAddsLocalDNSRuntime
+--- PASS: TestGeneratorAddsLocalDNSRuntime (0.00s)
+=== CONT  TestInitdControllerStatusDetectsActiveWithNoInstances
+--- PASS: TestInitdControllerStatusDetectsActiveWithNoInstances (0.00s)
+=== CONT  TestRuntimeBackendRollbackConfigRestoresCapturedSnapshot
+--- PASS: TestInitdControllerStatusDetectsRunningProcess (0.00s)
+=== CONT  TestDNSBootstrapDomainsAndDirectDestinations
+--- PASS: TestDNSBootstrapDomainsAndDirectDestinations (0.00s)
+=== CONT  TestCandidateConfigPatternKeepsExtension/config.json
+=== CONT  TestCandidateConfigPatternKeepsExtension/config.generated.json
+=== CONT  TestCandidateConfigPatternKeepsExtension/config
+--- PASS: TestCandidateConfigPatternKeepsExtension (0.00s)
+    --- PASS: TestCandidateConfigPatternKeepsExtension/config.json (0.00s)
+    --- PASS: TestCandidateConfigPatternKeepsExtension/config.generated.json (0.00s)
+    --- PASS: TestCandidateConfigPatternKeepsExtension/config (0.00s)
+--- PASS: TestRuntimeBackendStatusUsesConfigPath (0.00s)
+--- PASS: TestInitdControllerStatusTreatsUnknownAsNotRunning (0.00s)
+--- PASS: TestRuntimeBackendRollbackConfigRestoresCapturedSnapshot (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/backend/xray	0.040s
+?   	github.com/Blaze757/routeflux/internal/buildinfo	[no test files]
+=== RUN   TestPrepareAddRequest
+=== PAUSE TestPrepareAddRequest
+=== RUN   TestDaemonOnceRefreshesDueSubscription
+=== PAUSE TestDaemonOnceRefreshesDueSubscription
+=== RUN   TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop
+=== PAUSE TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop
+=== RUN   TestInspectPathDetectsExecutableFile
+=== PAUSE TestInspectPathDetectsExecutableFile
+=== RUN   TestInspectPathDetectsBrokenSymlink
+=== PAUSE TestInspectPathDetectsBrokenSymlink
+=== RUN   TestRenderDiagnosticsTextIncludesTransparentQUICPolicy
+=== PAUSE TestRenderDiagnosticsTextIncludesTransparentQUICPolicy
+=== RUN   TestRenderDiagnosticsTextIncludesIPv6FailState
+=== PAUSE TestRenderDiagnosticsTextIncludesIPv6FailState
+=== RUN   TestRenderDiagnosticsTextIncludesDNSRuntime
+=== PAUSE TestRenderDiagnosticsTextIncludesDNSRuntime
+=== RUN   TestDiagnosticsTransparentQUICPolicyMarksIncompatibleNodeAsBlocked
+=== PAUSE TestDiagnosticsTransparentQUICPolicyMarksIncompatibleNodeAsBlocked
+=== RUN   TestBuildDiagnosticsIPv6StatusFailsWhenTransparentRoutingLeavesIPv6Enabled
+=== PAUSE TestBuildDiagnosticsIPv6StatusFailsWhenTransparentRoutingLeavesIPv6Enabled
+=== RUN   TestDNSSetCommandUpdatesSettings
+=== PAUSE TestDNSSetCommandUpdatesSettings
+=== RUN   TestDNSExplainCommandOutputsFriendlyGuide
+=== PAUSE TestDNSExplainCommandOutputsFriendlyGuide
+=== RUN   TestDNSHelpIncludesDefaultCommand
+=== PAUSE TestDNSHelpIncludesDefaultCommand
+=== RUN   TestDNSSetHelpFocusesOnCommonPath
+=== PAUSE TestDNSSetHelpFocusesOnCommonPath
+=== RUN   TestDNSApplyHelpRemainsAvailableDirectly
+=== PAUSE TestDNSApplyHelpRemainsAvailableDirectly
+=== RUN   TestDNSSetDefaultAppliesRecommendedProfile
+=== PAUSE TestDNSSetDefaultAppliesRecommendedProfile
+=== RUN   TestDNSApplyReplacesProfileAtomically
+=== PAUSE TestDNSApplyReplacesProfileAtomically
+=== RUN   TestDNSDefaultCommandAppliesRecommendedProfile
+=== PAUSE TestDNSDefaultCommandAppliesRecommendedProfile
+=== RUN   TestDNSGetShowsCurrentValuesAndMeaning
+=== PAUSE TestDNSGetShowsCurrentValuesAndMeaning
+=== RUN   TestRootHelpIncludesDNSCommand
+=== PAUSE TestRootHelpIncludesDNSCommand
+=== RUN   TestFirewallHostCommand
+=== PAUSE TestFirewallHostCommand
+=== RUN   TestFirewallHostCommandSupportsAllAlias
+=== PAUSE TestFirewallHostCommandSupportsAllAlias
+=== RUN   TestFirewallSetHostsCommandSupportsAllAlias
+=== PAUSE TestFirewallSetHostsCommandSupportsAllAlias
+=== RUN   TestFirewallGetShowsCurrentValuesAndMeaning
+=== PAUSE TestFirewallGetShowsCurrentValuesAndMeaning
+=== RUN   TestFirewallGetShowsBypassForProxyFallbackSplit
+=== PAUSE TestFirewallGetShowsBypassForProxyFallbackSplit
+=== RUN   TestFirewallExplainOutputsFriendlyGuide
+=== PAUSE TestFirewallExplainOutputsFriendlyGuide
+=== RUN   TestFirewallHelpShowsCommonPathOnly
+=== PAUSE TestFirewallHelpShowsCommonPathOnly
+=== RUN   TestFirewallSetHelpFocusesOnCommonOptions
+=== PAUSE TestFirewallSetHelpFocusesOnCommonOptions
+=== RUN   TestFirewallDraftAndHostHelpRemainAvailableDirectly
+=== PAUSE TestFirewallDraftAndHostHelpRemainAvailableDirectly
+=== RUN   TestFirewallSetIPv6DisableCommand
+=== PAUSE TestFirewallSetIPv6DisableCommand
+=== RUN   TestSettingsGetIncludesFirewallHosts
+=== PAUSE TestSettingsGetIncludesFirewallHosts
+=== RUN   TestFirewallSetTargetsSupportsServicesAndDomains
+=== PAUSE TestFirewallSetTargetsSupportsServicesAndDomains
+=== RUN   TestFirewallSetAntiTargetSupportsServicesAndDomains
+=== PAUSE TestFirewallSetAntiTargetSupportsServicesAndDomains
+=== RUN   TestFirewallSetBypassSupportsExcludedHosts
+=== PAUSE TestFirewallSetBypassSupportsExcludedHosts
+=== RUN   TestFirewallSetSplitSupportsFlagsOnly
+=== PAUSE TestFirewallSetSplitSupportsFlagsOnly
+=== RUN   TestFirewallDraftCommandStoresAndClearsDrafts
+=== PAUSE TestFirewallDraftCommandStoresAndClearsDrafts
+=== RUN   TestFirewallDraftSplitStoresFlagsOnly
+=== PAUSE TestFirewallDraftSplitStoresFlagsOnly
+=== RUN   TestFirewallDraftBypassStoresSelectorsAndExcludedHosts
+=== PAUSE TestFirewallDraftBypassStoresSelectorsAndExcludedHosts
+=== RUN   TestInspectXrayJSONOutputsRawConfig
+=== PAUSE TestInspectXrayJSONOutputsRawConfig
+=== RUN   TestInspectXraySafeOutputsRedactedConfig
+=== PAUSE TestInspectXraySafeOutputsRedactedConfig
+=== RUN   TestInspectSpeedJSONOutputsMetrics
+=== PAUSE TestInspectSpeedJSONOutputsMetrics
+=== RUN   TestInspectSpeedDoesNotPrintUsageOnError
+=== PAUSE TestInspectSpeedDoesNotPrintUsageOnError
+=== RUN   TestInspectPingJSONOutputsNodeResultsEvenWhenOneNodeFails
+=== PAUSE TestInspectPingJSONOutputsNodeResultsEvenWhenOneNodeFails
+=== RUN   TestInspectPingDoesNotPrintUsageOnLookupError
+=== PAUSE TestInspectPingDoesNotPrintUsageOnLookupError
+=== RUN   TestStatusCommandJSONRedactsSecrets
+=== PAUSE TestStatusCommandJSONRedactsSecrets
+=== RUN   TestListSubscriptionsJSONRedactsSecrets
+=== PAUSE TestListSubscriptionsJSONRedactsSecrets
+=== RUN   TestListNodesJSONRedactsSecrets
+=== PAUSE TestListNodesJSONRedactsSecrets
+=== RUN   TestDiagnosticsCommandJSONRedactsNestedStatusSecrets
+=== PAUSE TestDiagnosticsCommandJSONRedactsNestedStatusSecrets
+=== RUN   TestBuildLogsSnapshotFiltersRouteFluxAndXray
+    logs_test.go:40: expected 1 system line (filtered), got 0
+--- FAIL: TestBuildLogsSnapshotFiltersRouteFluxAndXray (0.00s)
+=== RUN   TestBuildLogsSnapshotReportsLogreadError
+--- PASS: TestBuildLogsSnapshotReportsLogreadError (0.00s)
+=== RUN   TestBuildLogsSnapshotPrefersXrayLogFile
+--- PASS: TestBuildLogsSnapshotPrefersXrayLogFile (0.00s)
+=== RUN   TestDefaultReadLogTailReturnsFileTail
+=== PAUSE TestDefaultReadLogTailReturnsFileTail
+=== RUN   TestLastNReturnsTail
+=== PAUSE TestLastNReturnsTail
+=== RUN   TestMoveCommandReordersSubscriptions
+=== PAUSE TestMoveCommandReordersSubscriptions
+=== RUN   TestRefreshCommandRequiresSubscriptionOrAll
+=== PAUSE TestRefreshCommandRequiresSubscriptionOrAll
+=== RUN   TestRemoveCommandDeletesSubscription
+=== PAUSE TestRemoveCommandDeletesSubscription
+=== RUN   TestRemoveCommandDeletesAllSubscriptions
+=== PAUSE TestRemoveCommandDeletesAllSubscriptions
+=== RUN   TestRestartCommandClearsCaches
+=== PAUSE TestRestartCommandClearsCaches
+=== RUN   TestRootCommandHardensExistingSecretFilePermissions
+=== PAUSE TestRootCommandHardensExistingSecretFilePermissions
+=== RUN   TestRootHelpDoesNotListCompletionCommand
+--- PASS: TestRootHelpDoesNotListCompletionCommand (0.00s)
+=== RUN   TestRootCommandRejectsCompletionCommand
+--- PASS: TestRootCommandRejectsCompletionCommand (0.00s)
+=== RUN   TestServicesSetGetAndFirewallTargetsUseCustomAlias
+=== PAUSE TestServicesSetGetAndFirewallTargetsUseCustomAlias
+=== RUN   TestServicesSetSupportsCompositeBundles
+=== PAUSE TestServicesSetSupportsCompositeBundles
+=== RUN   TestServicesDeleteRejectsBuiltinName
+=== PAUSE TestServicesDeleteRejectsBuiltinName
+=== RUN   TestFormatLocalTimestampUsesProcessLocalZone
+--- PASS: TestFormatLocalTimestampUsesProcessLocalZone (0.00s)
+=== RUN   TestUpgradeFlagRunsLatestInstaller
+    upgrade_test.go:75: read wget log: open /tmp/TestUpgradeFlagRunsLatestInstaller2714783637/001/wget.log: no such file or directory
+--- FAIL: TestUpgradeFlagRunsLatestInstaller (0.01s)
+=== RUN   TestUpgradeFlagJSONOutputsStructuredResult
+--- PASS: TestUpgradeFlagJSONOutputsStructuredResult (0.01s)
+=== RUN   TestVersionCommandOutputsBuildInfo
+--- PASS: TestVersionCommandOutputsBuildInfo (0.00s)
+=== RUN   TestVersionFlagOutputsBuildInfo
+--- PASS: TestVersionFlagOutputsBuildInfo (0.00s)
+=== RUN   TestVersionCommandJSONOutputsBuildInfo
+--- PASS: TestVersionCommandJSONOutputsBuildInfo (0.00s)
+=== RUN   TestZapretGetExpandsLegacyAliasesToDomains
+=== PAUSE TestZapretGetExpandsLegacyAliasesToDomains
+=== RUN   TestZapretHelpDoesNotExposeResourcesCommand
+=== PAUSE TestZapretHelpDoesNotExposeResourcesCommand
+=== CONT  TestPrepareAddRequest
+=== RUN   TestPrepareAddRequest/url_argument_becomes_URL_request
+=== PAUSE TestPrepareAddRequest/url_argument_becomes_URL_request
+=== RUN   TestPrepareAddRequest/vless_argument_becomes_raw_request
+=== PAUSE TestPrepareAddRequest/vless_argument_becomes_raw_request
+=== RUN   TestPrepareAddRequest/interactive_url_becomes_URL_request
+=== PAUSE TestPrepareAddRequest/interactive_url_becomes_URL_request
+=== RUN   TestPrepareAddRequest/interactive_xray_json_becomes_raw_request
+=== PAUSE TestPrepareAddRequest/interactive_xray_json_becomes_raw_request
+=== RUN   TestPrepareAddRequest/empty_input_fails
+=== PAUSE TestPrepareAddRequest/empty_input_fails
+=== CONT  TestPrepareAddRequest/url_argument_becomes_URL_request
+=== CONT  TestZapretHelpDoesNotExposeResourcesCommand
+--- PASS: TestZapretHelpDoesNotExposeResourcesCommand (0.00s)
+=== CONT  TestZapretGetExpandsLegacyAliasesToDomains
+--- PASS: TestZapretGetExpandsLegacyAliasesToDomains (0.00s)
+=== CONT  TestServicesDeleteRejectsBuiltinName
+--- PASS: TestServicesDeleteRejectsBuiltinName (0.00s)
+=== CONT  TestServicesSetSupportsCompositeBundles
+--- PASS: TestServicesSetSupportsCompositeBundles (0.00s)
+=== CONT  TestServicesSetGetAndFirewallTargetsUseCustomAlias
+--- PASS: TestServicesSetGetAndFirewallTargetsUseCustomAlias (0.00s)
+=== CONT  TestRootCommandHardensExistingSecretFilePermissions
+=== CONT  TestFirewallHelpShowsCommonPathOnly
+=== CONT  TestDNSExplainCommandOutputsFriendlyGuide
+--- PASS: TestDNSExplainCommandOutputsFriendlyGuide (0.00s)
+=== CONT  TestFirewallExplainOutputsFriendlyGuide
+--- PASS: TestFirewallExplainOutputsFriendlyGuide (0.00s)
+=== CONT  TestFirewallGetShowsBypassForProxyFallbackSplit
+--- PASS: TestFirewallGetShowsBypassForProxyFallbackSplit (0.00s)
+=== CONT  TestFirewallGetShowsCurrentValuesAndMeaning
+--- PASS: TestFirewallGetShowsCurrentValuesAndMeaning (0.00s)
+=== CONT  TestFirewallSetHostsCommandSupportsAllAlias
+--- PASS: TestFirewallHelpShowsCommonPathOnly (0.00s)
+=== CONT  TestRestartCommandClearsCaches
+--- PASS: TestFirewallSetHostsCommandSupportsAllAlias (0.00s)
+=== CONT  TestFirewallHostCommandSupportsAllAlias
+--- PASS: TestFirewallHostCommandSupportsAllAlias (0.00s)
+=== CONT  TestFirewallHostCommand
+--- PASS: TestFirewallHostCommand (0.00s)
+=== CONT  TestRootHelpIncludesDNSCommand
+--- PASS: TestRootHelpIncludesDNSCommand (0.00s)
+=== CONT  TestDNSGetShowsCurrentValuesAndMeaning
+=== CONT  TestInspectSpeedJSONOutputsMetrics
+--- PASS: TestInspectSpeedJSONOutputsMetrics (0.00s)
+=== CONT  TestDNSSetCommandUpdatesSettings
+--- PASS: TestDNSSetCommandUpdatesSettings (0.00s)
+=== CONT  TestBuildDiagnosticsIPv6StatusFailsWhenTransparentRoutingLeavesIPv6Enabled
+--- PASS: TestBuildDiagnosticsIPv6StatusFailsWhenTransparentRoutingLeavesIPv6Enabled (0.00s)
+=== CONT  TestDiagnosticsTransparentQUICPolicyMarksIncompatibleNodeAsBlocked
+--- PASS: TestDiagnosticsTransparentQUICPolicyMarksIncompatibleNodeAsBlocked (0.00s)
+=== CONT  TestRenderDiagnosticsTextIncludesDNSRuntime
+--- PASS: TestRenderDiagnosticsTextIncludesDNSRuntime (0.00s)
+=== CONT  TestRenderDiagnosticsTextIncludesIPv6FailState
+--- PASS: TestRenderDiagnosticsTextIncludesIPv6FailState (0.00s)
+=== CONT  TestRenderDiagnosticsTextIncludesTransparentQUICPolicy
+--- PASS: TestRenderDiagnosticsTextIncludesTransparentQUICPolicy (0.00s)
+=== CONT  TestInspectPathDetectsBrokenSymlink
+--- PASS: TestDNSGetShowsCurrentValuesAndMeaning (0.00s)
+=== CONT  TestInspectPathDetectsExecutableFile
+--- PASS: TestInspectPathDetectsBrokenSymlink (0.00s)
+=== CONT  TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop
+--- PASS: TestInspectPathDetectsExecutableFile (0.00s)
+=== CONT  TestDaemonOnceRefreshesDueSubscription
+--- PASS: TestRestartCommandClearsCaches (0.00s)
+=== CONT  TestPrepareAddRequest/empty_input_fails
+=== CONT  TestPrepareAddRequest/interactive_xray_json_becomes_raw_request
+=== CONT  TestPrepareAddRequest/interactive_url_becomes_URL_request
+=== CONT  TestPrepareAddRequest/vless_argument_becomes_raw_request
+--- PASS: TestPrepareAddRequest (0.00s)
+    --- PASS: TestPrepareAddRequest/url_argument_becomes_URL_request (0.00s)
+    --- PASS: TestPrepareAddRequest/empty_input_fails (0.00s)
+    --- PASS: TestPrepareAddRequest/interactive_xray_json_becomes_raw_request (0.00s)
+    --- PASS: TestPrepareAddRequest/interactive_url_becomes_URL_request (0.00s)
+    --- PASS: TestPrepareAddRequest/vless_argument_becomes_raw_request (0.00s)
+=== CONT  TestFirewallSetBypassSupportsExcludedHosts
+--- PASS: TestFirewallSetBypassSupportsExcludedHosts (0.00s)
+=== CONT  TestInspectXraySafeOutputsRedactedConfig
+--- PASS: TestInspectXraySafeOutputsRedactedConfig (0.00s)
+=== CONT  TestInspectXrayJSONOutputsRawConfig
+--- PASS: TestInspectXrayJSONOutputsRawConfig (0.00s)
+=== CONT  TestFirewallDraftBypassStoresSelectorsAndExcludedHosts
+--- PASS: TestFirewallDraftBypassStoresSelectorsAndExcludedHosts (0.00s)
+=== CONT  TestFirewallDraftSplitStoresFlagsOnly
+--- PASS: TestFirewallDraftSplitStoresFlagsOnly (0.00s)
+=== CONT  TestFirewallDraftCommandStoresAndClearsDrafts
+--- PASS: TestFirewallDraftCommandStoresAndClearsDrafts (0.00s)
+=== CONT  TestFirewallSetSplitSupportsFlagsOnly
+--- PASS: TestFirewallSetSplitSupportsFlagsOnly (0.00s)
+=== CONT  TestDNSSetDefaultAppliesRecommendedProfile
+--- PASS: TestDNSSetDefaultAppliesRecommendedProfile (0.00s)
+=== CONT  TestDNSDefaultCommandAppliesRecommendedProfile
+--- PASS: TestDNSDefaultCommandAppliesRecommendedProfile (0.00s)
+=== CONT  TestDNSApplyReplacesProfileAtomically
+--- PASS: TestDNSApplyReplacesProfileAtomically (0.00s)
+=== CONT  TestSettingsGetIncludesFirewallHosts
+--- PASS: TestSettingsGetIncludesFirewallHosts (0.00s)
+=== CONT  TestFirewallSetAntiTargetSupportsServicesAndDomains
+--- PASS: TestFirewallSetAntiTargetSupportsServicesAndDomains (0.00s)
+=== CONT  TestFirewallSetTargetsSupportsServicesAndDomains
+--- PASS: TestFirewallSetTargetsSupportsServicesAndDomains (0.00s)
+=== CONT  TestDNSSetHelpFocusesOnCommonPath
+--- PASS: TestDNSSetHelpFocusesOnCommonPath (0.00s)
+=== CONT  TestDNSApplyHelpRemainsAvailableDirectly
+--- PASS: TestDNSApplyHelpRemainsAvailableDirectly (0.00s)
+=== CONT  TestDiagnosticsCommandJSONRedactsNestedStatusSecrets
+--- PASS: TestRootCommandHardensExistingSecretFilePermissions (0.01s)
+--- PASS: TestDiagnosticsCommandJSONRedactsNestedStatusSecrets (0.00s)
+=== CONT  TestRemoveCommandDeletesAllSubscriptions
+=== CONT  TestRemoveCommandDeletesSubscription
+--- PASS: TestRemoveCommandDeletesSubscription (0.00s)
+=== CONT  TestRefreshCommandRequiresSubscriptionOrAll
+--- PASS: TestRemoveCommandDeletesAllSubscriptions (0.00s)
+=== CONT  TestMoveCommandReordersSubscriptions
+--- PASS: TestMoveCommandReordersSubscriptions (0.00s)
+=== CONT  TestLastNReturnsTail
+--- PASS: TestLastNReturnsTail (0.00s)
+=== CONT  TestDefaultReadLogTailReturnsFileTail
+time=2026-07-26T03:51:51.522Z level=INFO msg="restore runtime start" subscription=sub-1 node=node-1 mode=manual
+--- PASS: TestRefreshCommandRequiresSubscriptionOrAll (0.00s)
+=== CONT  TestFirewallDraftAndHostHelpRemainAvailableDirectly
+--- PASS: TestDefaultReadLogTailReturnsFileTail (0.00s)
+=== CONT  TestFirewallSetIPv6DisableCommand
+--- PASS: TestFirewallSetIPv6DisableCommand (0.00s)
+=== CONT  TestDNSHelpIncludesDefaultCommand
+time=2026-07-26T03:51:51.522Z level=INFO msg="apply backend config" subscription=sub-1 node=node-1 mode=manual resolved_address=203.0.113.10
+time=2026-07-26T03:51:51.522Z level=INFO msg="validate xray config" config_path=/tmp/TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop1526822106/001/xray-config.json
+--- PASS: TestFirewallDraftAndHostHelpRemainAvailableDirectly (0.00s)
+=== CONT  TestFirewallSetHelpFocusesOnCommonOptions
+--- PASS: TestFirewallSetHelpFocusesOnCommonOptions (0.00s)
+=== CONT  TestInspectPingDoesNotPrintUsageOnLookupError
+--- PASS: TestInspectPingDoesNotPrintUsageOnLookupError (0.00s)
+=== CONT  TestListNodesJSONRedactsSecrets
+--- PASS: TestListNodesJSONRedactsSecrets (0.00s)
+=== CONT  TestListSubscriptionsJSONRedactsSecrets
+--- PASS: TestDNSHelpIncludesDefaultCommand (0.00s)
+=== CONT  TestStatusCommandJSONRedactsSecrets
+--- PASS: TestStatusCommandJSONRedactsSecrets (0.00s)
+=== CONT  TestInspectSpeedDoesNotPrintUsageOnError
+--- PASS: TestInspectSpeedDoesNotPrintUsageOnError (0.00s)
+=== CONT  TestInspectPingJSONOutputsNodeResultsEvenWhenOneNodeFails
+--- PASS: TestInspectPingJSONOutputsNodeResultsEvenWhenOneNodeFails (0.00s)
+--- PASS: TestListSubscriptionsJSONRedactsSecrets (0.00s)
+time=2026-07-26T03:51:51.527Z level=INFO msg="xray config validated" config_path=/tmp/TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop1526822106/001/xray-config.json
+time=2026-07-26T03:51:51.530Z level=INFO msg="reload xray service" config_path=/tmp/TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop1526822106/001/xray-config.json
+time=2026-07-26T03:51:51.532Z level=INFO msg="xray config applied" config_path=/tmp/TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop1526822106/001/xray-config.json backup_path=/tmp/TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop1526822106/001/xray-config.json.last-known-good
+time=2026-07-26T03:51:51.533Z level=INFO msg="backend running confirmed" subscription=sub-1 node=node-1 mode=manual service_state=running
+time=2026-07-26T03:51:51.554Z level=WARN msg="disable firewall failed" subscription=sub-1 node=node-1 error="/usr/sbin/nft delete table inet routeflux: exit status 1: Operation not permitted (you must be root)\nnetlink: Error: cache initialization failed: Operation not permitted"
+time=2026-07-26T03:51:51.554Z level=WARN msg="restore runtime failed" subscription=sub-1 node=node-1 error="disable firewall: /usr/sbin/nft delete table inet routeflux: exit status 1: Operation not permitted (you must be root)\nnetlink: Error: cache initialization failed: Operation not permitted"
+time=2026-07-26T03:51:51.935Z level=INFO msg="updated geo data" name=geoip
+time=2026-07-26T03:51:51.942Z level=INFO msg="updated geo data" name=geoip
+time=2026-07-26T03:51:52.026Z level=WARN msg="download geo data" name=geosite error="fetch https://github.com/v2fly/geosite/releases/latest/download/geosite.dat: status 404 Not Found"
+time=2026-07-26T03:51:52.027Z level=WARN msg="download geo data" name=geosite error="fetch https://github.com/v2fly/geosite/releases/latest/download/geosite.dat: status 404 Not Found"
+--- PASS: TestDaemonOnceRestoresPersistedConnectionBeforeSchedulerLoop (0.52s)
+time=2026-07-26T03:51:52.031Z level=INFO msg="refreshed subscription" subscription=sub-1
+--- PASS: TestDaemonOnceRefreshesDueSubscription (0.52s)
+FAIL
+FAIL	github.com/Blaze757/routeflux/internal/cli	0.544s
+=== RUN   TestFormatUsesTZEnvironmentPOSIXOffset
+--- PASS: TestFormatUsesTZEnvironmentPOSIXOffset (0.00s)
+=== RUN   TestFormatStringUsesTZEnvironmentPOSIXOffset
+--- PASS: TestFormatStringUsesTZEnvironmentPOSIXOffset (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/displaytime	0.003s
+=== RUN   TestParseFirewallTargetsSupportsMixedSelectors
+=== PAUSE TestParseFirewallTargetsSupportsMixedSelectors
+=== RUN   TestParseFirewallTargetsRejectsURLsAndInvalidDomains
+=== PAUSE TestParseFirewallTargetsRejectsURLsAndInvalidDomains
+=== RUN   TestExpandFirewallTargetDomainsSupportsServiceFamilies
+=== PAUSE TestExpandFirewallTargetDomainsSupportsServiceFamilies
+=== RUN   TestExpandFirewallTargetCIDRsSupportsTelegramPreset
+=== PAUSE TestExpandFirewallTargetCIDRsSupportsTelegramPreset
+=== RUN   TestExpandFirewallTargetCIDRsSupportsGoogleAIMobilePresets
+=== PAUSE TestExpandFirewallTargetCIDRsSupportsGoogleAIMobilePresets
+=== RUN   TestExpandFirewallTargetDomainsSupportsGoogleAIPresets
+=== PAUSE TestExpandFirewallTargetDomainsSupportsGoogleAIPresets
+=== RUN   TestExpandFirewallTargetDomainsSupportsGoogleAIMobilePresets
+=== PAUSE TestExpandFirewallTargetDomainsSupportsGoogleAIMobilePresets
+=== RUN   TestExpandFirewallTargetDomainsSupportsNetflixAndTwitterFamilies
+=== PAUSE TestExpandFirewallTargetDomainsSupportsNetflixAndTwitterFamilies
+=== RUN   TestFirewallTargetServiceNamesIsSorted
+=== PAUSE TestFirewallTargetServiceNamesIsSorted
+=== RUN   TestExpandFirewallTargetDomainsSupportsDeprecatedTelegramWebAlias
+=== PAUSE TestExpandFirewallTargetDomainsSupportsDeprecatedTelegramWebAlias
+=== RUN   TestParseFirewallTargetsSupportsCustomServices
+=== PAUSE TestParseFirewallTargetsSupportsCustomServices
+=== RUN   TestParseFirewallTargetsSupportsHyphenatedDomains
+=== PAUSE TestParseFirewallTargetsSupportsHyphenatedDomains
+=== RUN   TestParseFirewallTargetsRejectsUnknownBareAlias
+=== PAUSE TestParseFirewallTargetsRejectsUnknownBareAlias
+=== RUN   TestParseFirewallTargetDefinitionRejectsReservedNamesAndUnknownAliases
+=== PAUSE TestParseFirewallTargetDefinitionRejectsReservedNamesAndUnknownAliases
+=== RUN   TestParseFirewallTargetDefinitionSupportsHyphenatedDomains
+=== PAUSE TestParseFirewallTargetDefinitionSupportsHyphenatedDomains
+=== RUN   TestParseFirewallTargetDefinitionSupportsCompositeServiceIncludes
+=== PAUSE TestParseFirewallTargetDefinitionSupportsCompositeServiceIncludes
+=== RUN   TestParseFirewallTargetDefinitionRejectsSelfReference
+=== PAUSE TestParseFirewallTargetDefinitionRejectsSelfReference
+=== RUN   TestParseFirewallTargetDefinitionRejectsCycles
+=== PAUSE TestParseFirewallTargetDefinitionRejectsCycles
+=== RUN   TestExpandFirewallTargetsSupportCustomCatalog
+=== PAUSE TestExpandFirewallTargetsSupportCustomCatalog
+=== RUN   TestExpandFirewallTargetsSupportCompositeCatalog
+=== PAUSE TestExpandFirewallTargetsSupportCompositeCatalog
+=== RUN   TestHumanizeProviderNameFromRootDomain
+=== PAUSE TestHumanizeProviderNameFromRootDomain
+=== RUN   TestDefaultSettingsIncludeZapretDefaults
+=== PAUSE TestDefaultSettingsIncludeZapretDefaults
+=== RUN   TestDefaultRuntimeStateUsesDirectTransport
+=== PAUSE TestDefaultRuntimeStateUsesDirectTransport
+=== RUN   TestNormalizeZapretSettingsCanonicalizesDeprecatedServiceAliases
+=== PAUSE TestNormalizeZapretSettingsCanonicalizesDeprecatedServiceAliases
+=== RUN   TestCanonicalZapretSettingsWithCatalogExpandsLegacyAliasesToDomains
+=== PAUSE TestCanonicalZapretSettingsWithCatalogExpandsLegacyAliasesToDomains
+=== RUN   TestParseZapretSelectorsSupportsIPv4Selectors
+=== PAUSE TestParseZapretSelectorsSupportsIPv4Selectors
+=== RUN   TestParseZapretSelectorsSupportsDomainsAndIPv4Selectors
+=== PAUSE TestParseZapretSelectorsSupportsDomainsAndIPv4Selectors
+=== RUN   TestParseZapretSelectorsAcceptsKnownAliases
+=== PAUSE TestParseZapretSelectorsAcceptsKnownAliases
+=== RUN   TestParseZapretSelectorsRejectsUnknownAliases
+=== PAUSE TestParseZapretSelectorsRejectsUnknownAliases
+=== RUN   TestDurationJSONRoundTrip
+=== PAUSE TestDurationJSONRoundTrip
+=== RUN   TestSubscriptionNodeLookup
+=== PAUSE TestSubscriptionNodeLookup
+=== RUN   TestDefaultSettingsAreSane
+=== PAUSE TestDefaultSettingsAreSane
+=== RUN   TestEffectiveTransparentBlockQUICHonorsExplicitSetting
+=== PAUSE TestEffectiveTransparentBlockQUICHonorsExplicitSetting
+=== RUN   TestEffectiveTransparentBlockQUICAutoBlocksIncompatibleNode
+=== PAUSE TestEffectiveTransparentBlockQUICAutoBlocksIncompatibleNode
+=== RUN   TestEffectiveTransparentBlockQUICKeepsCompatibleNodeProxied
+=== PAUSE TestEffectiveTransparentBlockQUICKeepsCompatibleNodeProxied
+=== CONT  TestParseFirewallTargetsSupportsMixedSelectors
+--- PASS: TestParseFirewallTargetsSupportsMixedSelectors (0.00s)
+=== CONT  TestEffectiveTransparentBlockQUICKeepsCompatibleNodeProxied
+--- PASS: TestEffectiveTransparentBlockQUICKeepsCompatibleNodeProxied (0.00s)
+=== CONT  TestParseFirewallTargetDefinitionRejectsSelfReference
+--- PASS: TestParseFirewallTargetDefinitionRejectsSelfReference (0.00s)
+=== CONT  TestParseZapretSelectorsSupportsIPv4Selectors
+=== RUN   TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1
+=== PAUSE TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1
+=== RUN   TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.0/24
+=== PAUSE TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.0/24
+=== RUN   TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1-1.1.1.9
+=== PAUSE TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1-1.1.1.9
+=== CONT  TestParseZapretSelectorsSupportsDomainsAndIPv4Selectors
+--- PASS: TestParseZapretSelectorsSupportsDomainsAndIPv4Selectors (0.00s)
+=== CONT  TestCanonicalZapretSettingsWithCatalogExpandsLegacyAliasesToDomains
+--- PASS: TestCanonicalZapretSettingsWithCatalogExpandsLegacyAliasesToDomains (0.00s)
+=== CONT  TestDefaultSettingsAreSane
+--- PASS: TestDefaultSettingsAreSane (0.00s)
+=== CONT  TestSubscriptionNodeLookup
+--- PASS: TestSubscriptionNodeLookup (0.00s)
+=== CONT  TestDurationJSONRoundTrip
+--- PASS: TestDurationJSONRoundTrip (0.00s)
+=== CONT  TestParseZapretSelectorsRejectsUnknownAliases
+--- PASS: TestParseZapretSelectorsRejectsUnknownAliases (0.00s)
+=== CONT  TestParseZapretSelectorsAcceptsKnownAliases
+--- PASS: TestParseZapretSelectorsAcceptsKnownAliases (0.00s)
+=== CONT  TestFirewallTargetServiceNamesIsSorted
+--- PASS: TestFirewallTargetServiceNamesIsSorted (0.00s)
+=== CONT  TestNormalizeZapretSettingsCanonicalizesDeprecatedServiceAliases
+--- PASS: TestNormalizeZapretSettingsCanonicalizesDeprecatedServiceAliases (0.00s)
+=== CONT  TestParseFirewallTargetDefinitionSupportsCompositeServiceIncludes
+--- PASS: TestParseFirewallTargetDefinitionSupportsCompositeServiceIncludes (0.00s)
+=== CONT  TestDefaultRuntimeStateUsesDirectTransport
+--- PASS: TestDefaultRuntimeStateUsesDirectTransport (0.00s)
+=== CONT  TestDefaultSettingsIncludeZapretDefaults
+--- PASS: TestDefaultSettingsIncludeZapretDefaults (0.00s)
+=== CONT  TestHumanizeProviderNameFromRootDomain
+--- PASS: TestHumanizeProviderNameFromRootDomain (0.00s)
+=== CONT  TestExpandFirewallTargetsSupportCompositeCatalog
+--- PASS: TestExpandFirewallTargetsSupportCompositeCatalog (0.00s)
+=== CONT  TestExpandFirewallTargetsSupportCustomCatalog
+--- PASS: TestExpandFirewallTargetsSupportCustomCatalog (0.00s)
+=== CONT  TestParseFirewallTargetsSupportsHyphenatedDomains
+--- PASS: TestParseFirewallTargetsSupportsHyphenatedDomains (0.00s)
+=== CONT  TestParseFirewallTargetDefinitionRejectsReservedNamesAndUnknownAliases
+--- PASS: TestParseFirewallTargetDefinitionRejectsReservedNamesAndUnknownAliases (0.00s)
+=== CONT  TestParseFirewallTargetDefinitionSupportsHyphenatedDomains
+--- PASS: TestParseFirewallTargetDefinitionSupportsHyphenatedDomains (0.00s)
+=== CONT  TestParseFirewallTargetsSupportsCustomServices
+--- PASS: TestParseFirewallTargetsSupportsCustomServices (0.00s)
+=== CONT  TestExpandFirewallTargetDomainsSupportsDeprecatedTelegramWebAlias
+--- PASS: TestExpandFirewallTargetDomainsSupportsDeprecatedTelegramWebAlias (0.00s)
+=== CONT  TestExpandFirewallTargetCIDRsSupportsGoogleAIMobilePresets
+--- PASS: TestExpandFirewallTargetCIDRsSupportsGoogleAIMobilePresets (0.00s)
+=== CONT  TestExpandFirewallTargetDomainsSupportsNetflixAndTwitterFamilies
+--- PASS: TestExpandFirewallTargetDomainsSupportsNetflixAndTwitterFamilies (0.00s)
+=== CONT  TestExpandFirewallTargetDomainsSupportsGoogleAIMobilePresets
+--- PASS: TestExpandFirewallTargetDomainsSupportsGoogleAIMobilePresets (0.00s)
+=== CONT  TestExpandFirewallTargetDomainsSupportsGoogleAIPresets
+--- PASS: TestExpandFirewallTargetDomainsSupportsGoogleAIPresets (0.00s)
+=== CONT  TestExpandFirewallTargetDomainsSupportsServiceFamilies
+--- PASS: TestExpandFirewallTargetDomainsSupportsServiceFamilies (0.00s)
+=== CONT  TestExpandFirewallTargetCIDRsSupportsTelegramPreset
+--- PASS: TestExpandFirewallTargetCIDRsSupportsTelegramPreset (0.00s)
+=== CONT  TestParseFirewallTargetsRejectsURLsAndInvalidDomains
+=== RUN   TestParseFirewallTargetsRejectsURLsAndInvalidDomains/https://youtube.com
+=== PAUSE TestParseFirewallTargetsRejectsURLsAndInvalidDomains/https://youtube.com
+=== RUN   TestParseFirewallTargetsRejectsURLsAndInvalidDomains/youtube.com:443
+=== PAUSE TestParseFirewallTargetsRejectsURLsAndInvalidDomains/youtube.com:443
+=== RUN   TestParseFirewallTargetsRejectsURLsAndInvalidDomains/*.youtube.com
+=== PAUSE TestParseFirewallTargetsRejectsURLsAndInvalidDomains/*.youtube.com
+=== CONT  TestEffectiveTransparentBlockQUICHonorsExplicitSetting
+--- PASS: TestEffectiveTransparentBlockQUICHonorsExplicitSetting (0.00s)
+=== CONT  TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1
+=== CONT  TestParseFirewallTargetDefinitionRejectsCycles
+--- PASS: TestParseFirewallTargetDefinitionRejectsCycles (0.00s)
+=== CONT  TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1-1.1.1.9
+=== CONT  TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.0/24
+--- PASS: TestParseZapretSelectorsSupportsIPv4Selectors (0.00s)
+    --- PASS: TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1 (0.00s)
+    --- PASS: TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.1-1.1.1.9 (0.00s)
+    --- PASS: TestParseZapretSelectorsSupportsIPv4Selectors/1.1.1.0/24 (0.00s)
+=== CONT  TestParseFirewallTargetsRejectsUnknownBareAlias
+--- PASS: TestParseFirewallTargetsRejectsUnknownBareAlias (0.00s)
+=== CONT  TestParseFirewallTargetsRejectsURLsAndInvalidDomains/*.youtube.com
+=== CONT  TestParseFirewallTargetsRejectsURLsAndInvalidDomains/youtube.com:443
+=== CONT  TestParseFirewallTargetsRejectsURLsAndInvalidDomains/https://youtube.com
+--- PASS: TestParseFirewallTargetsRejectsURLsAndInvalidDomains (0.00s)
+    --- PASS: TestParseFirewallTargetsRejectsURLsAndInvalidDomains/*.youtube.com (0.00s)
+    --- PASS: TestParseFirewallTargetsRejectsURLsAndInvalidDomains/youtube.com:443 (0.00s)
+    --- PASS: TestParseFirewallTargetsRejectsURLsAndInvalidDomains/https://youtube.com (0.00s)
+=== CONT  TestEffectiveTransparentBlockQUICAutoBlocksIncompatibleNode
+--- PASS: TestEffectiveTransparentBlockQUICAutoBlocksIncompatibleNode (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/domain	0.006s
+=== RUN   TestParseVLESSLink
+=== PAUSE TestParseVLESSLink
+=== RUN   TestParseVMessLink
+=== PAUSE TestParseVMessLink
+=== RUN   TestParseMixedBase64Subscription
+=== PAUSE TestParseMixedBase64Subscription
+=== RUN   TestParseShadowsocksLink
+=== PAUSE TestParseShadowsocksLink
+=== RUN   TestParseSocksLink
+=== PAUSE TestParseSocksLink
+=== RUN   TestParseHysteriaLink
+=== PAUSE TestParseHysteriaLink
+=== RUN   TestParseHysteria2Link
+=== PAUSE TestParseHysteria2Link
+=== RUN   TestParseXrayJSONConfig
+=== PAUSE TestParseXrayJSONConfig
+=== RUN   TestParseXrayJSONConfigUsesTopLevelRemarksForNodeLabel
+=== PAUSE TestParseXrayJSONConfigUsesTopLevelRemarksForNodeLabel
+=== RUN   TestParseXrayJSONConfigSupportsDirectVLESSSettings
+=== PAUSE TestParseXrayJSONConfigSupportsDirectVLESSSettings
+=== RUN   TestParseXrayJSONDirectProtocolUsesTopLevelRemarksForNameAndRemark
+=== PAUSE TestParseXrayJSONDirectProtocolUsesTopLevelRemarksForNameAndRemark
+=== RUN   TestParseXrayJSONWrapperPropagatesTopLevelRemarksIntoNestedConfig
+=== PAUSE TestParseXrayJSONWrapperPropagatesTopLevelRemarksIntoNestedConfig
+=== RUN   TestParseJSONWrapperLinkPrefersWrapperRemarksOverNestedLinkName
+=== PAUSE TestParseJSONWrapperLinkPrefersWrapperRemarksOverNestedLinkName
+=== RUN   TestParseJSONWrapperStringConfigPrefersWrapperRemarksOverNestedLinkName
+=== PAUSE TestParseJSONWrapperStringConfigPrefersWrapperRemarksOverNestedLinkName
+=== RUN   TestParseJSONArrayWrapperRemarksProduceDistinctNodeIDs
+=== PAUSE TestParseJSONArrayWrapperRemarksProduceDistinctNodeIDs
+=== RUN   TestParseJSONArrayOfXrayConfigs
+=== PAUSE TestParseJSONArrayOfXrayConfigs
+=== RUN   TestParseHysteriaJSONConfig
+=== PAUSE TestParseHysteriaJSONConfig
+=== RUN   TestParseInvalidInput
+=== PAUSE TestParseInvalidInput
+=== CONT  TestParseVLESSLink
+--- PASS: TestParseVLESSLink (0.00s)
+=== CONT  TestParseInvalidInput
+--- PASS: TestParseInvalidInput (0.00s)
+=== CONT  TestParseHysteriaJSONConfig
+--- PASS: TestParseHysteriaJSONConfig (0.00s)
+=== CONT  TestParseJSONArrayOfXrayConfigs
+--- PASS: TestParseJSONArrayOfXrayConfigs (0.00s)
+=== CONT  TestParseJSONArrayWrapperRemarksProduceDistinctNodeIDs
+--- PASS: TestParseJSONArrayWrapperRemarksProduceDistinctNodeIDs (0.00s)
+=== CONT  TestParseJSONWrapperStringConfigPrefersWrapperRemarksOverNestedLinkName
+--- PASS: TestParseJSONWrapperStringConfigPrefersWrapperRemarksOverNestedLinkName (0.00s)
+=== CONT  TestParseJSONWrapperLinkPrefersWrapperRemarksOverNestedLinkName
+--- PASS: TestParseJSONWrapperLinkPrefersWrapperRemarksOverNestedLinkName (0.00s)
+=== CONT  TestParseXrayJSONWrapperPropagatesTopLevelRemarksIntoNestedConfig
+--- PASS: TestParseXrayJSONWrapperPropagatesTopLevelRemarksIntoNestedConfig (0.00s)
+=== CONT  TestParseXrayJSONDirectProtocolUsesTopLevelRemarksForNameAndRemark
+--- PASS: TestParseXrayJSONDirectProtocolUsesTopLevelRemarksForNameAndRemark (0.00s)
+=== CONT  TestParseXrayJSONConfigSupportsDirectVLESSSettings
+--- PASS: TestParseXrayJSONConfigSupportsDirectVLESSSettings (0.00s)
+=== CONT  TestParseXrayJSONConfigUsesTopLevelRemarksForNodeLabel
+--- PASS: TestParseXrayJSONConfigUsesTopLevelRemarksForNodeLabel (0.00s)
+=== CONT  TestParseXrayJSONConfig
+--- PASS: TestParseXrayJSONConfig (0.00s)
+=== CONT  TestParseHysteria2Link
+--- PASS: TestParseHysteria2Link (0.00s)
+=== CONT  TestParseHysteriaLink
+--- PASS: TestParseHysteriaLink (0.00s)
+=== CONT  TestParseSocksLink
+--- PASS: TestParseSocksLink (0.00s)
+=== CONT  TestParseShadowsocksLink
+--- PASS: TestParseShadowsocksLink (0.00s)
+=== CONT  TestParseMixedBase64Subscription
+=== CONT  TestParseVMessLink
+--- PASS: TestParseVMessLink (0.00s)
+--- PASS: TestParseMixedBase64Subscription (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/parser	0.007s
+=== RUN   TestDNSRuntimeManagerSystemResolversFromRunningDNSMasq
+=== PAUSE TestDNSRuntimeManagerSystemResolversFromRunningDNSMasq
+=== RUN   TestDNSRuntimeManagerApplyWritesDNSOverrideSnippetAndRestarts
+=== PAUSE TestDNSRuntimeManagerApplyWritesDNSOverrideSnippetAndRestarts
+=== RUN   TestBuildDNSMasqRouteFluxDNSConfigRejectsAdvancedMatchers
+=== PAUSE TestBuildDNSMasqRouteFluxDNSConfigRejectsAdvancedMatchers
+=== RUN   TestFirewallManagerValidateRejectsDNSMasqWithoutNFTSet
+=== PAUSE TestFirewallManagerValidateRejectsDNSMasqWithoutNFTSet
+=== RUN   TestFirewallManagerValidateRejectsBypassTargetsWithoutDNSMasqNFTSet
+=== PAUSE TestFirewallManagerValidateRejectsBypassTargetsWithoutDNSMasqNFTSet
+=== RUN   TestFirewallManagerValidateAllowsCIDRBypassTargetsWithoutDNSMasqNFTSet
+=== PAUSE TestFirewallManagerValidateAllowsCIDRBypassTargetsWithoutDNSMasqNFTSet
+=== RUN   TestFirewallManagerApplyWritesDNSMasqSnippetAndReloads
+=== PAUSE TestFirewallManagerApplyWritesDNSMasqSnippetAndReloads
+=== RUN   TestFirewallManagerApplyWritesDNSMasqSnippetForCustomServices
+=== PAUSE TestFirewallManagerApplyWritesDNSMasqSnippetForCustomServices
+=== RUN   TestFirewallManagerDisableRemovesDNSMasqSnippet
+=== PAUSE TestFirewallManagerDisableRemovesDNSMasqSnippet
+=== RUN   TestBuildNFTablesRules
+=== PAUSE TestBuildNFTablesRules
+=== RUN   TestBuildNFTablesRulesSupportsTargetDomainsWithoutStaticCIDRs
+=== PAUSE TestBuildNFTablesRulesSupportsTargetDomainsWithoutStaticCIDRs
+=== RUN   TestBuildNFTablesRulesSupportsTargetServicesWithPresetCIDRs
+=== PAUSE TestBuildNFTablesRulesSupportsTargetServicesWithPresetCIDRs
+=== RUN   TestBuildNFTablesRulesSupportsCustomTargetServices
+=== PAUSE TestBuildNFTablesRulesSupportsCustomTargetServices
+=== RUN   TestBuildNFTablesRulesRejectsInvalidTargets
+=== PAUSE TestBuildNFTablesRulesRejectsInvalidTargets
+=== RUN   TestBuildNFTablesRulesInterceptsUDPForTargetDomainsWithoutDroppingQUIC
+=== PAUSE TestBuildNFTablesRulesInterceptsUDPForTargetDomainsWithoutDroppingQUIC
+=== RUN   TestBuildNFTablesRulesInterceptsAllUDPWhenQUICProxyingEnabled
+=== PAUSE TestBuildNFTablesRulesInterceptsAllUDPWhenQUICProxyingEnabled
+=== RUN   TestBuildNFTablesRulesForBypassTargetsSkipsTargetSetAndOutputChain
+=== PAUSE TestBuildNFTablesRulesForBypassTargetsSkipsTargetSetAndOutputChain
+=== RUN   TestBuildNFTablesRulesForSplitDirectOnlyInterceptsProxyTargets
+=== PAUSE TestBuildNFTablesRulesForSplitDirectOnlyInterceptsProxyTargets
+=== RUN   TestBuildNFTablesRulesForSourceHosts
+=== PAUSE TestBuildNFTablesRulesForSourceHosts
+=== RUN   TestBuildNFTablesRulesForSourceHostsBypassesLocalDestinationsFirst
+=== PAUSE TestBuildNFTablesRulesForSourceHostsBypassesLocalDestinationsFirst
+=== RUN   TestBuildNFTablesRulesForSourceHostRange
+=== PAUSE TestBuildNFTablesRulesForSourceHostRange
+=== RUN   TestBuildNFTablesRulesForAllSourceHosts
+=== PAUSE TestBuildNFTablesRulesForAllSourceHosts
+=== RUN   TestFirewallDisableIgnoresMissingNFTBinary
+=== PAUSE TestFirewallDisableIgnoresMissingNFTBinary
+=== RUN   TestFirewallManagerApplyConfiguresUDPPolicyRouting
+=== PAUSE TestFirewallManagerApplyConfiguresUDPPolicyRouting
+=== RUN   TestFirewallManagerDisableRemovesUDPPolicyRouting
+=== PAUSE TestFirewallManagerDisableRemovesUDPPolicyRouting
+=== RUN   TestConntrackTargetForMemTotalKiB
+=== PAUSE TestConntrackTargetForMemTotalKiB
+=== RUN   TestFirewallManagerTuneConntrackRaisesLimit
+=== PAUSE TestFirewallManagerTuneConntrackRaisesLimit
+=== RUN   TestFirewallManagerTuneConntrackWarnsOnHighUsage
+=== PAUSE TestFirewallManagerTuneConntrackWarnsOnHighUsage
+=== RUN   TestFirewallManagerDisableTunesConntrack
+=== PAUSE TestFirewallManagerDisableTunesConntrack
+=== RUN   TestFirewallManagerTuneConntrackIgnoresReadOnlyPaths
+=== PAUSE TestFirewallManagerTuneConntrackIgnoresReadOnlyPaths
+=== RUN   TestIPv6ManagerApplyDisablePersistsAndUpdatesRuntime
+=== PAUSE TestIPv6ManagerApplyDisablePersistsAndUpdatesRuntime
+=== RUN   TestIPv6ManagerStatusReportsEnabledInterfaces
+=== PAUSE TestIPv6ManagerStatusReportsEnabledInterfaces
+=== RUN   TestZapretManagerApplyAndDisableRoundTrip
+=== PAUSE TestZapretManagerApplyAndDisableRoundTrip
+=== RUN   TestZapretManagerStatusDetectsExternalUnmanagedService
+=== PAUSE TestZapretManagerStatusDetectsExternalUnmanagedService
+=== RUN   TestZapretManagerApplyAdoptsRunningService
+=== PAUSE TestZapretManagerApplyAdoptsRunningService
+=== RUN   TestBuildManagedZapretConfigSkipsIPProfileWithoutCIDRs
+=== PAUSE TestBuildManagedZapretConfigSkipsIPProfileWithoutCIDRs
+=== CONT  TestDNSRuntimeManagerSystemResolversFromRunningDNSMasq
+--- PASS: TestDNSRuntimeManagerSystemResolversFromRunningDNSMasq (0.00s)
+=== CONT  TestBuildManagedZapretConfigSkipsIPProfileWithoutCIDRs
+--- PASS: TestBuildManagedZapretConfigSkipsIPProfileWithoutCIDRs (0.00s)
+=== CONT  TestZapretManagerApplyAdoptsRunningService
+=== CONT  TestBuildNFTablesRulesForSplitDirectOnlyInterceptsProxyTargets
+=== CONT  TestZapretManagerStatusDetectsExternalUnmanagedService
+--- PASS: TestBuildNFTablesRulesForSplitDirectOnlyInterceptsProxyTargets (0.00s)
+=== CONT  TestBuildNFTablesRulesRejectsInvalidTargets
+=== CONT  TestBuildNFTablesRules
+=== CONT  TestBuildNFTablesRulesInterceptsAllUDPWhenQUICProxyingEnabled
+=== CONT  TestBuildNFTablesRulesInterceptsUDPForTargetDomainsWithoutDroppingQUIC
+--- PASS: TestBuildNFTablesRulesRejectsInvalidTargets (0.00s)
+--- PASS: TestBuildNFTablesRules (0.00s)
+--- PASS: TestBuildNFTablesRulesInterceptsAllUDPWhenQUICProxyingEnabled (0.00s)
+=== CONT  TestBuildNFTablesRulesForBypassTargetsSkipsTargetSetAndOutputChain
+--- PASS: TestBuildNFTablesRulesInterceptsUDPForTargetDomainsWithoutDroppingQUIC (0.00s)
+=== CONT  TestConntrackTargetForMemTotalKiB
+--- PASS: TestConntrackTargetForMemTotalKiB (0.00s)
+=== CONT  TestZapretManagerApplyAndDisableRoundTrip
+--- PASS: TestBuildNFTablesRulesForBypassTargetsSkipsTargetSetAndOutputChain (0.00s)
+=== CONT  TestIPv6ManagerStatusReportsEnabledInterfaces
+--- PASS: TestIPv6ManagerStatusReportsEnabledInterfaces (0.00s)
+=== CONT  TestIPv6ManagerApplyDisablePersistsAndUpdatesRuntime
+--- PASS: TestZapretManagerStatusDetectsExternalUnmanagedService (0.00s)
+=== CONT  TestFirewallManagerTuneConntrackIgnoresReadOnlyPaths
+2026/07/26 03:51:51 routeflux: conntrack auto-tune skipped: open /tmp/TestFirewallManagerTuneConntrackIgnoresReadOnlyPaths1423471473/001/missing/meminfo: no such file or directory
+--- PASS: TestFirewallManagerTuneConntrackIgnoresReadOnlyPaths (0.00s)
+=== CONT  TestFirewallManagerDisableTunesConntrack
+2026/07/26 03:51:51 routeflux: conntrack limit raised to 65536 (count=824)
+--- PASS: TestIPv6ManagerApplyDisablePersistsAndUpdatesRuntime (0.00s)
+=== CONT  TestFirewallManagerTuneConntrackWarnsOnHighUsage
+--- PASS: TestFirewallManagerDisableTunesConntrack (0.00s)
+=== CONT  TestFirewallManagerTuneConntrackRaisesLimit
+=== CONT  TestBuildNFTablesRulesForAllSourceHosts
+=== CONT  TestFirewallManagerDisableRemovesUDPPolicyRouting
+--- PASS: TestFirewallManagerTuneConntrackWarnsOnHighUsage (0.00s)
+--- PASS: TestBuildNFTablesRulesForAllSourceHosts (0.00s)
+--- PASS: TestFirewallManagerTuneConntrackRaisesLimit (0.00s)
+=== CONT  TestFirewallManagerApplyConfiguresUDPPolicyRouting
+--- PASS: TestZapretManagerApplyAdoptsRunningService (0.01s)
+=== CONT  TestFirewallDisableIgnoresMissingNFTBinary
+--- PASS: TestFirewallManagerDisableRemovesUDPPolicyRouting (0.01s)
+=== CONT  TestFirewallManagerValidateAllowsCIDRBypassTargetsWithoutDNSMasqNFTSet
+=== CONT  TestFirewallManagerDisableRemovesDNSMasqSnippet
+--- PASS: TestFirewallManagerValidateAllowsCIDRBypassTargetsWithoutDNSMasqNFTSet (0.00s)
+--- PASS: TestFirewallDisableIgnoresMissingNFTBinary (0.00s)
+=== CONT  TestFirewallManagerApplyWritesDNSMasqSnippetForCustomServices
+--- PASS: TestZapretManagerApplyAndDisableRoundTrip (0.02s)
+=== CONT  TestFirewallManagerApplyWritesDNSMasqSnippetAndReloads
+--- PASS: TestFirewallManagerApplyConfiguresUDPPolicyRouting (0.01s)
+=== CONT  TestFirewallManagerValidateRejectsDNSMasqWithoutNFTSet
+--- PASS: TestFirewallManagerDisableRemovesDNSMasqSnippet (0.01s)
+=== CONT  TestFirewallManagerValidateRejectsBypassTargetsWithoutDNSMasqNFTSet
+--- PASS: TestFirewallManagerValidateRejectsBypassTargetsWithoutDNSMasqNFTSet (0.00s)
+=== CONT  TestBuildNFTablesRulesForSourceHostsBypassesLocalDestinationsFirst
+--- PASS: TestBuildNFTablesRulesForSourceHostsBypassesLocalDestinationsFirst (0.00s)
+=== CONT  TestBuildNFTablesRulesForSourceHostRange
+--- PASS: TestBuildNFTablesRulesForSourceHostRange (0.00s)
+=== CONT  TestBuildNFTablesRulesForSourceHosts
+--- PASS: TestBuildNFTablesRulesForSourceHosts (0.00s)
+=== CONT  TestBuildNFTablesRulesSupportsTargetServicesWithPresetCIDRs
+--- PASS: TestBuildNFTablesRulesSupportsTargetServicesWithPresetCIDRs (0.00s)
+=== CONT  TestBuildNFTablesRulesSupportsCustomTargetServices
+--- PASS: TestBuildNFTablesRulesSupportsCustomTargetServices (0.00s)
+=== CONT  TestBuildDNSMasqRouteFluxDNSConfigRejectsAdvancedMatchers
+=== CONT  TestBuildNFTablesRulesSupportsTargetDomainsWithoutStaticCIDRs
+=== CONT  TestDNSRuntimeManagerApplyWritesDNSOverrideSnippetAndRestarts
+--- PASS: TestFirewallManagerValidateRejectsDNSMasqWithoutNFTSet (0.00s)
+--- PASS: TestBuildDNSMasqRouteFluxDNSConfigRejectsAdvancedMatchers (0.00s)
+--- PASS: TestBuildNFTablesRulesSupportsTargetDomainsWithoutStaticCIDRs (0.00s)
+--- PASS: TestDNSRuntimeManagerApplyWritesDNSOverrideSnippetAndRestarts (0.00s)
+--- PASS: TestFirewallManagerApplyWritesDNSMasqSnippetAndReloads (0.01s)
+--- PASS: TestFirewallManagerApplyWritesDNSMasqSnippetForCustomServices (0.01s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/platform/openwrt	0.037s
+=== RUN   TestCalculateScore
+=== PAUSE TestCalculateScore
+=== RUN   TestShouldSwitch
+=== PAUSE TestShouldSwitch
+=== RUN   TestTCPCheckerSuccess
+=== PAUSE TestTCPCheckerSuccess
+=== RUN   TestTCPCheckerFailureUsesTimeoutLatency
+=== PAUSE TestTCPCheckerFailureUsesTimeoutLatency
+=== RUN   TestUpdateHealthSuccessClearsFailuresAndTracksAverage
+=== PAUSE TestUpdateHealthSuccessClearsFailuresAndTracksAverage
+=== RUN   TestUpdateHealthFailurePreservesHealthyNodeUntilThreshold
+=== PAUSE TestUpdateHealthFailurePreservesHealthyNodeUntilThreshold
+=== RUN   TestUpdateHealthFailureMarksNodeUnhealthyAtThreshold
+=== PAUSE TestUpdateHealthFailureMarksNodeUnhealthyAtThreshold
+=== RUN   TestUpdateHealthFailureKeepsNewNodeUnhealthyWithoutSuccessHistory
+=== PAUSE TestUpdateHealthFailureKeepsNewNodeUnhealthyWithoutSuccessHistory
+=== RUN   TestSelectBestNodeKeepsStableOrderOnTie
+=== PAUSE TestSelectBestNodeKeepsStableOrderOnTie
+=== RUN   TestSelectBestNodeFailsOnEmptyInput
+=== PAUSE TestSelectBestNodeFailsOnEmptyInput
+=== RUN   TestShouldSwitchRejectsUnhealthyCandidate
+=== PAUSE TestShouldSwitchRejectsUnhealthyCandidate
+=== RUN   TestTCPCheckerHysteriaFallback
+=== PAUSE TestTCPCheckerHysteriaFallback
+=== CONT  TestCalculateScore
+=== RUN   TestCalculateScore/healthy_node_gets_positive_score
+=== PAUSE TestCalculateScore/healthy_node_gets_positive_score
+=== RUN   TestCalculateScore/unhealthy_node_is_penalized
+=== PAUSE TestCalculateScore/unhealthy_node_is_penalized
+=== CONT  TestCalculateScore/healthy_node_gets_positive_score
+=== CONT  TestTCPCheckerHysteriaFallback
+=== CONT  TestUpdateHealthFailurePreservesHealthyNodeUntilThreshold
+--- PASS: TestUpdateHealthFailurePreservesHealthyNodeUntilThreshold (0.00s)
+=== CONT  TestShouldSwitchRejectsUnhealthyCandidate
+--- PASS: TestShouldSwitchRejectsUnhealthyCandidate (0.00s)
+=== CONT  TestUpdateHealthFailureKeepsNewNodeUnhealthyWithoutSuccessHistory
+--- PASS: TestUpdateHealthFailureKeepsNewNodeUnhealthyWithoutSuccessHistory (0.00s)
+=== CONT  TestTCPCheckerSuccess
+=== CONT  TestSelectBestNodeKeepsStableOrderOnTie
+--- PASS: TestSelectBestNodeKeepsStableOrderOnTie (0.00s)
+=== CONT  TestUpdateHealthSuccessClearsFailuresAndTracksAverage
+--- PASS: TestUpdateHealthSuccessClearsFailuresAndTracksAverage (0.00s)
+=== CONT  TestTCPCheckerFailureUsesTimeoutLatency
+=== CONT  TestSelectBestNodeFailsOnEmptyInput
+--- PASS: TestSelectBestNodeFailsOnEmptyInput (0.00s)
+=== CONT  TestShouldSwitch
+--- PASS: TestShouldSwitch (0.00s)
+=== CONT  TestCalculateScore/unhealthy_node_is_penalized
+--- PASS: TestCalculateScore (0.00s)
+    --- PASS: TestCalculateScore/healthy_node_gets_positive_score (0.00s)
+    --- PASS: TestCalculateScore/unhealthy_node_is_penalized (0.00s)
+=== CONT  TestUpdateHealthFailureMarksNodeUnhealthyAtThreshold
+--- PASS: TestUpdateHealthFailureMarksNodeUnhealthyAtThreshold (0.00s)
+--- PASS: TestTCPCheckerFailureUsesTimeoutLatency (0.00s)
+--- PASS: TestTCPCheckerSuccess (0.00s)
+--- PASS: TestTCPCheckerHysteriaFallback (0.04s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/probe	0.042s
+=== RUN   TestConfigureProcessSetsLinuxSafetyAttrs
+=== PAUSE TestConfigureProcessSetsLinuxSafetyAttrs
+=== RUN   TestDefaultTransferProfileUsesAdaptiveMultiStreamSample
+=== PAUSE TestDefaultTransferProfileUsesAdaptiveMultiStreamSample
+=== RUN   TestZeroReaderFillsBufferWithZeros
+=== PAUSE TestZeroReaderFillsBufferWithZeros
+=== RUN   TestTransferDownloadWindowUsesParallelWorkers
+=== PAUSE TestTransferDownloadWindowUsesParallelWorkers
+=== RUN   TestTransferUploadWindowUsesParallelWorkers
+=== PAUSE TestTransferUploadWindowUsesParallelWorkers
+=== RUN   TestCleanupStaleTempDirsRemovesOnlySpeedtestDirs
+=== PAUSE TestCleanupStaleTempDirsRemovesOnlySpeedtestDirs
+=== RUN   TestRunnerReturnsBusyWhenLockHeld
+=== PAUSE TestRunnerReturnsBusyWhenLockHeld
+=== RUN   TestRunnerCleansUpTempConfigAndStopsProcessOnSuccess
+=== PAUSE TestRunnerCleansUpTempConfigAndStopsProcessOnSuccess
+=== RUN   TestRunnerStopsProcessAndCleansUpOnMeasureFailure
+=== PAUSE TestRunnerStopsProcessAndCleansUpOnMeasureFailure
+=== CONT  TestConfigureProcessSetsLinuxSafetyAttrs
+=== CONT  TestCleanupStaleTempDirsRemovesOnlySpeedtestDirs
+--- PASS: TestConfigureProcessSetsLinuxSafetyAttrs (0.00s)
+=== CONT  TestTransferUploadWindowUsesParallelWorkers
+=== CONT  TestZeroReaderFillsBufferWithZeros
+--- PASS: TestZeroReaderFillsBufferWithZeros (0.00s)
+=== CONT  TestTransferDownloadWindowUsesParallelWorkers
+=== CONT  TestDefaultTransferProfileUsesAdaptiveMultiStreamSample
+--- PASS: TestDefaultTransferProfileUsesAdaptiveMultiStreamSample (0.00s)
+--- PASS: TestCleanupStaleTempDirsRemovesOnlySpeedtestDirs (0.00s)
+=== CONT  TestRunnerStopsProcessAndCleansUpOnMeasureFailure
+--- PASS: TestRunnerStopsProcessAndCleansUpOnMeasureFailure (0.00s)
+=== CONT  TestRunnerCleansUpTempConfigAndStopsProcessOnSuccess
+=== CONT  TestRunnerReturnsBusyWhenLockHeld
+--- PASS: TestRunnerCleansUpTempConfigAndStopsProcessOnSuccess (0.00s)
+--- PASS: TestRunnerReturnsBusyWhenLockHeld (0.00s)
+--- PASS: TestTransferUploadWindowUsesParallelWorkers (0.13s)
+--- PASS: TestTransferDownloadWindowUsesParallelWorkers (0.13s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/speedtest	0.135s
+=== RUN   TestLoadSettingsMigratesMissingSchemaVersion
+=== PAUSE TestLoadSettingsMigratesMissingSchemaVersion
+=== RUN   TestLoadSettingsPreservesLegacyFirewallTargetsWithoutDomains
+=== PAUSE TestLoadSettingsPreservesLegacyFirewallTargetsWithoutDomains
+=== RUN   TestLoadSettingsDecodesTargetServices
+=== PAUSE TestLoadSettingsDecodesTargetServices
+=== RUN   TestLoadSettingsDecodesTargetServiceCatalog
+=== PAUSE TestLoadSettingsDecodesTargetServiceCatalog
+=== RUN   TestLoadSettingsMigratesLegacyAntiTargetModeToSplit
+=== PAUSE TestLoadSettingsMigratesLegacyAntiTargetModeToSplit
+=== RUN   TestLoadSettingsDecodesFirewallModeDraftsAndCompositeCatalog
+=== PAUSE TestLoadSettingsDecodesFirewallModeDraftsAndCompositeCatalog
+=== RUN   TestLoadSettingsMigratesLegacyBlockQUICToDisabled
+=== PAUSE TestLoadSettingsMigratesLegacyBlockQUICToDisabled
+=== RUN   TestLoadSettingsPreservesBlockQUICForCurrentSchema
+=== PAUSE TestLoadSettingsPreservesBlockQUICForCurrentSchema
+=== RUN   TestLoadSettingsPreservesDisableIPv6ForCurrentSchema
+=== PAUSE TestLoadSettingsPreservesDisableIPv6ForCurrentSchema
+=== RUN   TestLoadSettingsPreservesZapretSettingsForCurrentSchema
+=== PAUSE TestLoadSettingsPreservesZapretSettingsForCurrentSchema
+=== RUN   TestLoadSettingsPreservesAutoExcludedNodesForCurrentSchema
+=== PAUSE TestLoadSettingsPreservesAutoExcludedNodesForCurrentSchema
+=== RUN   TestLoadSettingsRejectsFutureSchemaVersion
+=== PAUSE TestLoadSettingsRejectsFutureSchemaVersion
+=== RUN   TestLoadStateMigratesMissingSchemaVersion
+=== PAUSE TestLoadStateMigratesMissingSchemaVersion
+=== RUN   TestLoadStateRejectsFutureSchemaVersion
+=== PAUSE TestLoadStateRejectsFutureSchemaVersion
+=== RUN   TestLoadSettingsRecoversCorruptJSON
+=== PAUSE TestLoadSettingsRecoversCorruptJSON
+=== RUN   TestLoadStateRecoversCorruptJSON
+=== PAUSE TestLoadStateRecoversCorruptJSON
+=== RUN   TestAtomicWriteJSON
+=== PAUSE TestAtomicWriteJSON
+=== RUN   TestFileStoreRoundTrip
+=== PAUSE TestFileStoreRoundTrip
+=== RUN   TestFileStoreWithWriteLockSerializesAcrossProcesses
+--- PASS: TestFileStoreWithWriteLockSerializesAcrossProcesses (0.21s)
+=== RUN   TestFileStoreWithWriteLockHelperProcess
+--- PASS: TestFileStoreWithWriteLockHelperProcess (0.00s)
+=== CONT  TestLoadSettingsMigratesMissingSchemaVersion
+=== CONT  TestLoadSettingsPreservesZapretSettingsForCurrentSchema
+=== CONT  TestLoadSettingsRecoversCorruptJSON
+=== CONT  TestLoadSettingsDecodesFirewallModeDraftsAndCompositeCatalog
+--- PASS: TestLoadSettingsMigratesMissingSchemaVersion (0.00s)
+=== CONT  TestLoadStateRejectsFutureSchemaVersion
+--- PASS: TestLoadSettingsPreservesZapretSettingsForCurrentSchema (0.00s)
+--- PASS: TestLoadStateRejectsFutureSchemaVersion (0.00s)
+--- PASS: TestLoadSettingsDecodesFirewallModeDraftsAndCompositeCatalog (0.00s)
+=== CONT  TestLoadStateMigratesMissingSchemaVersion
+=== CONT  TestLoadSettingsRejectsFutureSchemaVersion
+=== CONT  TestLoadSettingsPreservesAutoExcludedNodesForCurrentSchema
+--- PASS: TestLoadSettingsRejectsFutureSchemaVersion (0.00s)
+--- PASS: TestLoadStateMigratesMissingSchemaVersion (0.00s)
+--- PASS: TestLoadSettingsPreservesAutoExcludedNodesForCurrentSchema (0.00s)
+=== CONT  TestLoadSettingsPreservesBlockQUICForCurrentSchema
+=== CONT  TestLoadSettingsPreservesDisableIPv6ForCurrentSchema
+=== CONT  TestLoadSettingsMigratesLegacyBlockQUICToDisabled
+--- PASS: TestLoadSettingsRecoversCorruptJSON (0.00s)
+=== CONT  TestLoadSettingsDecodesTargetServiceCatalog
+=== CONT  TestFileStoreRoundTrip
+=== CONT  TestLoadSettingsDecodesTargetServices
+--- PASS: TestLoadSettingsPreservesDisableIPv6ForCurrentSchema (0.00s)
+--- PASS: TestLoadSettingsPreservesBlockQUICForCurrentSchema (0.00s)
+=== CONT  TestLoadSettingsMigratesLegacyAntiTargetModeToSplit
+--- PASS: TestLoadSettingsMigratesLegacyBlockQUICToDisabled (0.00s)
+--- PASS: TestLoadSettingsDecodesTargetServiceCatalog (0.00s)
+=== CONT  TestAtomicWriteJSON
+--- PASS: TestLoadSettingsMigratesLegacyAntiTargetModeToSplit (0.00s)
+=== CONT  TestLoadSettingsPreservesLegacyFirewallTargetsWithoutDomains
+--- PASS: TestLoadSettingsPreservesLegacyFirewallTargetsWithoutDomains (0.00s)
+=== CONT  TestLoadStateRecoversCorruptJSON
+--- PASS: TestAtomicWriteJSON (0.00s)
+--- PASS: TestLoadSettingsDecodesTargetServices (0.00s)
+--- PASS: TestLoadStateRecoversCorruptJSON (0.00s)
+--- PASS: TestFileStoreRoundTrip (0.01s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/store	0.226s
+=== RUN   TestBuildProviderGroupsGroupsSubscriptionsByProvider
+=== PAUSE TestBuildProviderGroupsGroupsSubscriptionsByProvider
+=== RUN   TestBuildProviderGroupsAssignsFallbackProfileLabels
+=== PAUSE TestBuildProviderGroupsAssignsFallbackProfileLabels
+=== RUN   TestBuildProviderGroupsHumanizesDomainProviderNames
+=== PAUSE TestBuildProviderGroupsHumanizesDomainProviderNames
+=== RUN   TestBuildProviderGroupsStripsEmojiFromTUITitlesAndLabels
+=== PAUSE TestBuildProviderGroupsStripsEmojiFromTUITitlesAndLabels
+=== RUN   TestRenderNodesStripsEmojiFromNodeNames
+=== PAUSE TestRenderNodesStripsEmojiFromNodeNames
+=== RUN   TestRenderStatusStripsEmojiFromActiveNodeNames
+=== PAUSE TestRenderStatusStripsEmojiFromActiveNodeNames
+=== RUN   TestRenderProvidersShowsProviderHierarchy
+=== PAUSE TestRenderProvidersShowsProviderHierarchy
+=== RUN   TestRenderMainViewKeepsTopSectionsVisibleWithManyNodes
+=== PAUSE TestRenderMainViewKeepsTopSectionsVisibleWithManyNodes
+=== RUN   TestFormatLocalTimestampUsesProcessLocalZone
+--- PASS: TestFormatLocalTimestampUsesProcessLocalZone (0.00s)
+=== CONT  TestBuildProviderGroupsGroupsSubscriptionsByProvider
+--- PASS: TestBuildProviderGroupsGroupsSubscriptionsByProvider (0.00s)
+=== CONT  TestBuildProviderGroupsStripsEmojiFromTUITitlesAndLabels
+--- PASS: TestBuildProviderGroupsStripsEmojiFromTUITitlesAndLabels (0.00s)
+=== CONT  TestBuildProviderGroupsHumanizesDomainProviderNames
+--- PASS: TestBuildProviderGroupsHumanizesDomainProviderNames (0.00s)
+=== CONT  TestBuildProviderGroupsAssignsFallbackProfileLabels
+--- PASS: TestBuildProviderGroupsAssignsFallbackProfileLabels (0.00s)
+=== CONT  TestRenderProvidersShowsProviderHierarchy
+--- PASS: TestRenderProvidersShowsProviderHierarchy (0.00s)
+=== CONT  TestRenderMainViewKeepsTopSectionsVisibleWithManyNodes
+=== CONT  TestRenderNodesStripsEmojiFromNodeNames
+--- PASS: TestRenderNodesStripsEmojiFromNodeNames (0.00s)
+=== CONT  TestRenderStatusStripsEmojiFromActiveNodeNames
+--- PASS: TestRenderStatusStripsEmojiFromActiveNodeNames (0.00s)
+--- PASS: TestRenderMainViewKeepsTopSectionsVisibleWithManyNodes (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/internal/tui	0.005s
+=== RUN   TestRedactXrayPreviewRedactsSecretsAndKeepsDoH
+=== PAUSE TestRedactXrayPreviewRedactsSecretsAndKeepsDoH
+=== CONT  TestRedactXrayPreviewRedactsSecretsAndKeepsDoH
+--- PASS: TestRedactXrayPreviewRedactsSecretsAndKeepsDoH (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/pkg/api	0.005s
+?   	github.com/Blaze757/routeflux/cmd/routeflux	[no test files]
+=== RUN   TestCoverageScriptReportsGoTestFailure
+=== PAUSE TestCoverageScriptReportsGoTestFailure
+=== RUN   TestCoverageScriptFailsBelowThreshold
+=== PAUSE TestCoverageScriptFailsBelowThreshold
+=== RUN   TestCoverageScriptAcceptsWholeNumberCoverage
+=== PAUSE TestCoverageScriptAcceptsWholeNumberCoverage
+=== RUN   TestInstallScriptInstallsMatchedOpenWrtTarball
+=== PAUSE TestInstallScriptInstallsMatchedOpenWrtTarball
+=== RUN   TestInstallScriptHardensExistingSecretFilePermissions
+=== PAUSE TestInstallScriptHardensExistingSecretFilePermissions
+=== RUN   TestInstallScriptRejectsUnsupportedArchitecture
+=== PAUSE TestInstallScriptRejectsUnsupportedArchitecture
+=== RUN   TestInstallScriptInstallsBundledXrayWhenMissing
+=== PAUSE TestInstallScriptInstallsBundledXrayWhenMissing
+=== RUN   TestInstallScriptFallsBackToUnameForX8664
+=== PAUSE TestInstallScriptFallsBackToUnameForX8664
+=== RUN   TestInstallScriptFailsWhenBundledXrayAssetIsMissing
+=== PAUSE TestInstallScriptFailsWhenBundledXrayAssetIsMissing
+=== RUN   TestInstallScriptInstallsMatchedAArch64OpenWrtTarball
+=== PAUSE TestInstallScriptInstallsMatchedAArch64OpenWrtTarball
+=== RUN   TestInstallScriptInstallsBundledXrayForAArch64WhenMissing
+=== PAUSE TestInstallScriptInstallsBundledXrayForAArch64WhenMissing
+=== RUN   TestInstallScriptInstallsDependenciesAndZapretWhenEnabled
+=== PAUSE TestInstallScriptInstallsDependenciesAndZapretWhenEnabled
+=== RUN   TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures
+=== PAUSE TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures
+=== RUN   TestLuCIACLReadPermissionsUseSafeWhitelist
+=== PAUSE TestLuCIACLReadPermissionsUseSafeWhitelist
+=== RUN   TestPackageOpenWrtFallsBackToTarWhenBSDTarMissing
+=== PAUSE TestPackageOpenWrtFallsBackToTarWhenBSDTarMissing
+=== RUN   TestPackageReleaseBuildsAllPublishedArchitectures
+=== PAUSE TestPackageReleaseBuildsAllPublishedArchitectures
+=== RUN   TestRouteFluxCronHelperEnsuresHourlyXrayRetention
+=== PAUSE TestRouteFluxCronHelperEnsuresHourlyXrayRetention
+=== RUN   TestRouteFluxCronHelperRemovesManagedBlockOnly
+=== PAUSE TestRouteFluxCronHelperRemovesManagedBlockOnly
+=== RUN   TestRouteFluxCronHelperUpdatesManagedBlockWhenJobsChange
+=== PAUSE TestRouteFluxCronHelperUpdatesManagedBlockWhenJobsChange
+=== RUN   TestSelfUpdateHelperSkipsInstallWhenAlreadyLatest
+=== PAUSE TestSelfUpdateHelperSkipsInstallWhenAlreadyLatest
+=== RUN   TestSelfUpdateHelperRunsCLIUpgradeWhenVersionDiffers
+=== PAUSE TestSelfUpdateHelperRunsCLIUpgradeWhenVersionDiffers
+=== RUN   TestUninstallScriptRemovesRouteFluxAndXrayArtifacts
+=== PAUSE TestUninstallScriptRemovesRouteFluxAndXrayArtifacts
+=== RUN   TestUninstallScriptRemovesLegacyZapretAndRouteFluxTailsWithoutManifest
+=== PAUSE TestUninstallScriptRemovesLegacyZapretAndRouteFluxTailsWithoutManifest
+=== RUN   TestUninstallScriptSucceedsWhenArtifactsAreMissing
+=== PAUSE TestUninstallScriptSucceedsWhenArtifactsAreMissing
+=== RUN   TestXrayUpdateHelperSkipsInstallWhenAlreadyLatest
+=== PAUSE TestXrayUpdateHelperSkipsInstallWhenAlreadyLatest
+=== RUN   TestXrayUpdateHelperReturnsUnsupportedStatusForSoftFloatMips
+=== PAUSE TestXrayUpdateHelperReturnsUnsupportedStatusForSoftFloatMips
+=== RUN   TestXrayUpdateHelperInstallsSupportedOfficialAsset
+=== PAUSE TestXrayUpdateHelperInstallsSupportedOfficialAsset
+=== CONT  TestCoverageScriptReportsGoTestFailure
+=== CONT  TestPackageOpenWrtFallsBackToTarWhenBSDTarMissing
+=== CONT  TestUninstallScriptRemovesRouteFluxAndXrayArtifacts
+=== CONT  TestXrayUpdateHelperSkipsInstallWhenAlreadyLatest
+--- PASS: TestCoverageScriptReportsGoTestFailure (0.01s)
+=== CONT  TestSelfUpdateHelperRunsCLIUpgradeWhenVersionDiffers
+--- PASS: TestXrayUpdateHelperSkipsInstallWhenAlreadyLatest (0.02s)
+=== CONT  TestSelfUpdateHelperSkipsInstallWhenAlreadyLatest
+--- PASS: TestSelfUpdateHelperSkipsInstallWhenAlreadyLatest (0.02s)
+=== CONT  TestRouteFluxCronHelperUpdatesManagedBlockWhenJobsChange
+--- PASS: TestSelfUpdateHelperRunsCLIUpgradeWhenVersionDiffers (0.04s)
+=== CONT  TestRouteFluxCronHelperRemovesManagedBlockOnly
+--- PASS: TestRouteFluxCronHelperUpdatesManagedBlockWhenJobsChange (0.02s)
+=== CONT  TestRouteFluxCronHelperEnsuresHourlyXrayRetention
+--- PASS: TestRouteFluxCronHelperRemovesManagedBlockOnly (0.01s)
+=== CONT  TestPackageReleaseBuildsAllPublishedArchitectures
+--- PASS: TestRouteFluxCronHelperEnsuresHourlyXrayRetention (0.02s)
+=== CONT  TestXrayUpdateHelperInstallsSupportedOfficialAsset
+--- PASS: TestPackageReleaseBuildsAllPublishedArchitectures (0.04s)
+=== CONT  TestXrayUpdateHelperReturnsUnsupportedStatusForSoftFloatMips
+--- PASS: TestXrayUpdateHelperReturnsUnsupportedStatusForSoftFloatMips (0.01s)
+=== CONT  TestUninstallScriptSucceedsWhenArtifactsAreMissing
+--- PASS: TestPackageOpenWrtFallsBackToTarWhenBSDTarMissing (0.12s)
+=== CONT  TestInstallScriptFallsBackToUnameForX8664
+--- PASS: TestXrayUpdateHelperInstallsSupportedOfficialAsset (0.05s)
+=== CONT  TestLuCIACLReadPermissionsUseSafeWhitelist
+--- PASS: TestLuCIACLReadPermissionsUseSafeWhitelist (0.00s)
+=== CONT  TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures
+--- PASS: TestUninstallScriptSucceedsWhenArtifactsAreMissing (0.02s)
+=== CONT  TestInstallScriptInstallsDependenciesAndZapretWhenEnabled
+=== RUN   TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/mipsel_24kc
+=== PAUSE TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/mipsel_24kc
+=== RUN   TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/x86_64
+=== PAUSE TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/x86_64
+=== RUN   TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/aarch64_cortex-a53
+=== PAUSE TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/aarch64_cortex-a53
+=== CONT  TestInstallScriptInstallsBundledXrayForAArch64WhenMissing
+--- PASS: TestInstallScriptFallsBackToUnameForX8664 (0.06s)
+=== CONT  TestInstallScriptInstallsMatchedAArch64OpenWrtTarball
+--- PASS: TestUninstallScriptRemovesRouteFluxAndXrayArtifacts (0.19s)
+=== CONT  TestInstallScriptFailsWhenBundledXrayAssetIsMissing
+--- PASS: TestInstallScriptInstallsBundledXrayForAArch64WhenMissing (0.07s)
+=== CONT  TestInstallScriptInstallsMatchedOpenWrtTarball
+--- PASS: TestInstallScriptFailsWhenBundledXrayAssetIsMissing (0.03s)
+=== CONT  TestInstallScriptInstallsBundledXrayWhenMissing
+--- PASS: TestInstallScriptInstallsMatchedAArch64OpenWrtTarball (0.06s)
+=== CONT  TestInstallScriptRejectsUnsupportedArchitecture
+--- PASS: TestInstallScriptRejectsUnsupportedArchitecture (0.02s)
+=== CONT  TestInstallScriptHardensExistingSecretFilePermissions
+--- PASS: TestInstallScriptInstallsMatchedOpenWrtTarball (0.06s)
+=== CONT  TestUninstallScriptRemovesLegacyZapretAndRouteFluxTailsWithoutManifest
+--- PASS: TestInstallScriptInstallsBundledXrayWhenMissing (0.06s)
+=== CONT  TestCoverageScriptFailsBelowThreshold
+--- PASS: TestInstallScriptInstallsDependenciesAndZapretWhenEnabled (0.17s)
+=== CONT  TestCoverageScriptAcceptsWholeNumberCoverage
+--- PASS: TestInstallScriptHardensExistingSecretFilePermissions (0.07s)
+=== CONT  TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/mipsel_24kc
+--- PASS: TestCoverageScriptFailsBelowThreshold (0.04s)
+=== CONT  TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/aarch64_cortex-a53
+--- PASS: TestUninstallScriptRemovesLegacyZapretAndRouteFluxTailsWithoutManifest (0.06s)
+=== CONT  TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/x86_64
+--- PASS: TestCoverageScriptAcceptsWholeNumberCoverage (0.03s)
+--- PASS: TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures (0.01s)
+    --- PASS: TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/aarch64_cortex-a53 (0.17s)
+    --- PASS: TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/mipsel_24kc (0.18s)
+    --- PASS: TestInstallScriptBootstrapsBareRouterAcrossSupportedArchitectures/x86_64 (0.18s)
+PASS
+ok  	github.com/Blaze757/routeflux/test/release	0.503s
+=== RUN   TestAboutViewUsesLatestInstallScriptUpgradeFlow
+=== PAUSE TestAboutViewUsesLatestInstallScriptUpgradeFlow
+=== RUN   TestAboutUpdateHelperRunsExactInstallCommand
+=== PAUSE TestAboutUpdateHelperRunsExactInstallCommand
+=== RUN   TestXrayUpdateHelperUsesOfficialUpstreamSource
+=== PAUSE TestXrayUpdateHelperUsesOfficialUpstreamSource
+=== RUN   TestRouteFluxACLAllowsUpdateHelpers
+=== PAUSE TestRouteFluxACLAllowsUpdateHelpers
+=== RUN   TestAboutViewFormatsBuildDateAndSimplifiesWhatsNew
+=== PAUSE TestAboutViewFormatsBuildDateAndSimplifiesWhatsNew
+=== RUN   TestAboutViewUsesRouteFluxButtonsInsteadOfLegacyThemeClasses
+=== PAUSE TestAboutViewUsesRouteFluxButtonsInsteadOfLegacyThemeClasses
+=== RUN   TestDiagnosticsViewUsesCalmerHighLevelCopy
+=== PAUSE TestDiagnosticsViewUsesCalmerHighLevelCopy
+=== RUN   TestDiagnosticsViewMovesLowLevelChecksIntoDetails
+=== PAUSE TestDiagnosticsViewMovesLowLevelChecksIntoDetails
+=== RUN   TestDiagnosticsViewRemovesDarkShellAroundLightPanels
+=== PAUSE TestDiagnosticsViewRemovesDarkShellAroundLightPanels
+=== RUN   TestDiagnosticsViewUsesReadableLightPanelCopy
+=== PAUSE TestDiagnosticsViewUsesReadableLightPanelCopy
+=== RUN   TestDiagnosticsViewUsesLightActionButtonsInsteadOfDarkNavy
+=== PAUSE TestDiagnosticsViewUsesLightActionButtonsInsteadOfDarkNavy
+=== RUN   TestDiagnosticsViewKeepsFileChecksLightAndUndarkened
+=== PAUSE TestDiagnosticsViewKeepsFileChecksLightAndUndarkened
+=== RUN   TestDiagnosticsViewUsesPremiumDarkThemePanels
+=== PAUSE TestDiagnosticsViewUsesPremiumDarkThemePanels
+=== RUN   TestDNSViewExplainsRelationshipToRouting
+=== PAUSE TestDNSViewExplainsRelationshipToRouting
+=== RUN   TestFirewallViewUsesSimplifiedRoutingCopy
+=== PAUSE TestFirewallViewUsesSimplifiedRoutingCopy
+=== RUN   TestFirewallViewDefinesReadableContrastTheme
+=== PAUSE TestFirewallViewDefinesReadableContrastTheme
+=== RUN   TestFirewallViewUsesLightActionButtonsInsteadOfDarkNavy
+=== PAUSE TestFirewallViewUsesLightActionButtonsInsteadOfDarkNavy
+=== RUN   TestFirewallViewUsesReadableLightInputsAndPlaceholders
+=== PAUSE TestFirewallViewUsesReadableLightInputsAndPlaceholders
+=== RUN   TestFirewallViewUsesStructuredKeepDirectSelectorShell
+=== PAUSE TestFirewallViewUsesStructuredKeepDirectSelectorShell
+=== RUN   TestFirewallViewRemovesDarkShellAroundRoutingPanels
+=== PAUSE TestFirewallViewRemovesDarkShellAroundRoutingPanels
+=== RUN   TestFirewallViewUsesGreenSelectedChoiceState
+=== PAUSE TestFirewallViewUsesGreenSelectedChoiceState
+=== RUN   TestFirewallViewUsesPremiumDarkThemeChoicesAndSelectors
+=== PAUSE TestFirewallViewUsesPremiumDarkThemeChoicesAndSelectors
+=== RUN   TestFirewallViewReRendersAfterRoutingChoiceChange
+=== PAUSE TestFirewallViewReRendersAfterRoutingChoiceChange
+=== RUN   TestFirewallViewKeepsIntroOnThemeColors
+=== PAUSE TestFirewallViewKeepsIntroOnThemeColors
+=== RUN   TestFirewallViewRemovesAdvancedRoutingControls
+=== PAUSE TestFirewallViewRemovesAdvancedRoutingControls
+=== RUN   TestFirewallViewPersistsOnlyOffAndBypassModes
+=== PAUSE TestFirewallViewPersistsOnlyOffAndBypassModes
+=== RUN   TestLuCIMenuKeepsSubscriptionsRoutingZapretDiagnosticsSettingsAndAbout
+=== PAUSE TestLuCIMenuKeepsSubscriptionsRoutingZapretDiagnosticsSettingsAndAbout
+=== RUN   TestOverviewViewShowsActivePingCard
+=== PAUSE TestOverviewViewShowsActivePingCard
+=== RUN   TestOverviewViewUsesFlagshipShellMarkers
+=== PAUSE TestOverviewViewUsesFlagshipShellMarkers
+=== RUN   TestSettingsViewShowsOnlyAppearanceControls
+=== PAUSE TestSettingsViewShowsOnlyAppearanceControls
+=== RUN   TestSettingsViewRemovesLegacyRuntimeConfigurationControls
+=== PAUSE TestSettingsViewRemovesLegacyRuntimeConfigurationControls
+=== RUN   TestSettingsViewUsesReadableLightThemeChoices
+=== PAUSE TestSettingsViewUsesReadableLightThemeChoices
+=== RUN   TestSubscriptionsViewKeepsSafeGeneratedXrayPreview
+=== PAUSE TestSubscriptionsViewKeepsSafeGeneratedXrayPreview
+=== RUN   TestSubscriptionsViewShowsConditionalExpirationDateAndRemoveAction
+=== PAUSE TestSubscriptionsViewShowsConditionalExpirationDateAndRemoveAction
+=== RUN   TestSubscriptionsViewShowsRemainingTrafficMeter
+=== PAUSE TestSubscriptionsViewShowsRemainingTrafficMeter
+=== RUN   TestSubscriptionsViewShowsCompactStackColumnInNodeTable
+=== PAUSE TestSubscriptionsViewShowsCompactStackColumnInNodeTable
+=== RUN   TestSubscriptionsViewUsesStaticNodeTableLayout
+=== PAUSE TestSubscriptionsViewUsesStaticNodeTableLayout
+=== RUN   TestSubscriptionsViewUsesDistinctVerticalStackChips
+=== PAUSE TestSubscriptionsViewUsesDistinctVerticalStackChips
+=== RUN   TestSubscriptionsViewShowsPingControlsAndStates
+=== PAUSE TestSubscriptionsViewShowsPingControlsAndStates
+=== RUN   TestSubscriptionsViewPlacesRecheckInActionStack
+=== PAUSE TestSubscriptionsViewPlacesRecheckInActionStack
+=== RUN   TestSubscriptionsViewStacksNodeActionsOnSmartphones
+=== PAUSE TestSubscriptionsViewStacksNodeActionsOnSmartphones
+=== RUN   TestSubscriptionsViewResetsNodeColumnWidthsOnSmartphones
+=== PAUSE TestSubscriptionsViewResetsNodeColumnWidthsOnSmartphones
+=== RUN   TestSubscriptionsViewCentersNodeCardsOnSmartphones
+=== PAUSE TestSubscriptionsViewCentersNodeCardsOnSmartphones
+=== RUN   TestSubscriptionsViewCentersHeroCardsAndSummaryBlocksOnSmartphones
+=== PAUSE TestSubscriptionsViewCentersHeroCardsAndSummaryBlocksOnSmartphones
+=== RUN   TestSubscriptionsViewCentersSubscriptionMetaTableOnMobile
+=== PAUSE TestSubscriptionsViewCentersSubscriptionMetaTableOnMobile
+=== RUN   TestSubscriptionsViewKeepsCopyButtonCloseToIDOnDesktop
+=== PAUSE TestSubscriptionsViewKeepsCopyButtonCloseToIDOnDesktop
+=== RUN   TestSubscriptionsViewUsesSofterLightAccentsAndReadablePingState
+=== PAUSE TestSubscriptionsViewUsesSofterLightAccentsAndReadablePingState
+=== RUN   TestSubscriptionsViewSortsNodesByActiveThenPingLatency
+=== PAUSE TestSubscriptionsViewSortsNodesByActiveThenPingLatency
+=== RUN   TestSubscriptionsViewSupportsAutoExcludedNodes
+=== PAUSE TestSubscriptionsViewSupportsAutoExcludedNodes
+=== RUN   TestSubscriptionsViewKeepsOverviewSummaryAndCoreActions
+=== PAUSE TestSubscriptionsViewKeepsOverviewSummaryAndCoreActions
+=== RUN   TestSubscriptionsViewUsesStyledAddSubscriptionPanel
+=== PAUSE TestSubscriptionsViewUsesStyledAddSubscriptionPanel
+=== RUN   TestSubscriptionsViewUsesFlagshipDarkShellMarkers
+=== PAUSE TestSubscriptionsViewUsesFlagshipDarkShellMarkers
+=== RUN   TestRouteFluxUISharedThemeSupportsDarkPremiumShell
+=== PAUSE TestRouteFluxUISharedThemeSupportsDarkPremiumShell
+=== RUN   TestRouteFluxUISharedThemeSupportsLightModeAndPersistence
+=== PAUSE TestRouteFluxUISharedThemeSupportsLightModeAndPersistence
+=== RUN   TestRouteFluxUISharedThemeUsesReadableLightPalette
+=== PAUSE TestRouteFluxUISharedThemeUsesReadableLightPalette
+=== RUN   TestZapretViewIncludesCompactFallbackAndSelectorEditor
+=== PAUSE TestZapretViewIncludesCompactFallbackAndSelectorEditor
+=== RUN   TestZapretViewUsesDedicatedCommands
+=== PAUSE TestZapretViewUsesDedicatedCommands
+=== RUN   TestZapretViewUsesGreenSelectedChoiceState
+=== PAUSE TestZapretViewUsesGreenSelectedChoiceState
+=== RUN   TestZapretViewUsesCompactSelectorEditorInsteadOfPresetBlocks
+=== PAUSE TestZapretViewUsesCompactSelectorEditorInsteadOfPresetBlocks
+=== RUN   TestZapretViewRemovesDarkShellAroundLightPanels
+=== PAUSE TestZapretViewRemovesDarkShellAroundLightPanels
+=== RUN   TestZapretViewUsesReadableLightPanelCopy
+=== PAUSE TestZapretViewUsesReadableLightPanelCopy
+=== RUN   TestZapretViewUsesLightActionButtonsInsteadOfDarkNavy
+=== PAUSE TestZapretViewUsesLightActionButtonsInsteadOfDarkNavy
+=== RUN   TestZapretViewUsesReadableLightInputsAndPlaceholders
+=== PAUSE TestZapretViewUsesReadableLightInputsAndPlaceholders
+=== RUN   TestZapretViewUsesPremiumDarkThemeChoicesAndEditors
+=== PAUSE TestZapretViewUsesPremiumDarkThemeChoicesAndEditors
+=== CONT  TestAboutViewUsesLatestInstallScriptUpgradeFlow
+=== CONT  TestFirewallViewUsesLightActionButtonsInsteadOfDarkNavy
+=== CONT  TestSubscriptionsViewKeepsSafeGeneratedXrayPreview
+--- PASS: TestAboutViewUsesLatestInstallScriptUpgradeFlow (0.00s)
+=== CONT  TestFirewallViewDefinesReadableContrastTheme
+--- PASS: TestFirewallViewDefinesReadableContrastTheme (0.00s)
+=== CONT  TestFirewallViewUsesSimplifiedRoutingCopy
+--- PASS: TestFirewallViewUsesSimplifiedRoutingCopy (0.00s)
+=== CONT  TestDNSViewExplainsRelationshipToRouting
+--- PASS: TestDNSViewExplainsRelationshipToRouting (0.00s)
+=== CONT  TestDiagnosticsViewUsesPremiumDarkThemePanels
+--- PASS: TestFirewallViewUsesLightActionButtonsInsteadOfDarkNavy (0.00s)
+=== CONT  TestSettingsViewUsesReadableLightThemeChoices
+--- PASS: TestSubscriptionsViewKeepsSafeGeneratedXrayPreview (0.00s)
+=== CONT  TestZapretViewUsesPremiumDarkThemeChoicesAndEditors
+--- PASS: TestDiagnosticsViewUsesPremiumDarkThemePanels (0.00s)
+=== CONT  TestDiagnosticsViewKeepsFileChecksLightAndUndarkened
+--- PASS: TestDiagnosticsViewKeepsFileChecksLightAndUndarkened (0.00s)
+=== CONT  TestDiagnosticsViewUsesLightActionButtonsInsteadOfDarkNavy
+--- PASS: TestDiagnosticsViewUsesLightActionButtonsInsteadOfDarkNavy (0.00s)
+=== CONT  TestDiagnosticsViewUsesReadableLightPanelCopy
+--- PASS: TestSettingsViewUsesReadableLightThemeChoices (0.00s)
+=== CONT  TestSettingsViewRemovesLegacyRuntimeConfigurationControls
+--- PASS: TestDiagnosticsViewUsesReadableLightPanelCopy (0.00s)
+=== CONT  TestDiagnosticsViewRemovesDarkShellAroundLightPanels
+--- PASS: TestDiagnosticsViewRemovesDarkShellAroundLightPanels (0.00s)
+=== CONT  TestDiagnosticsViewMovesLowLevelChecksIntoDetails
+--- PASS: TestZapretViewUsesPremiumDarkThemeChoicesAndEditors (0.00s)
+=== CONT  TestZapretViewUsesReadableLightInputsAndPlaceholders
+--- PASS: TestDiagnosticsViewMovesLowLevelChecksIntoDetails (0.00s)
+=== CONT  TestDiagnosticsViewUsesCalmerHighLevelCopy
+--- PASS: TestDiagnosticsViewUsesCalmerHighLevelCopy (0.00s)
+=== CONT  TestAboutViewUsesRouteFluxButtonsInsteadOfLegacyThemeClasses
+--- PASS: TestZapretViewUsesReadableLightInputsAndPlaceholders (0.00s)
+=== CONT  TestZapretViewUsesLightActionButtonsInsteadOfDarkNavy
+--- PASS: TestAboutViewUsesRouteFluxButtonsInsteadOfLegacyThemeClasses (0.00s)
+=== CONT  TestAboutViewFormatsBuildDateAndSimplifiesWhatsNew
+--- PASS: TestZapretViewUsesLightActionButtonsInsteadOfDarkNavy (0.00s)
+=== CONT  TestRouteFluxACLAllowsUpdateHelpers
+--- PASS: TestAboutViewFormatsBuildDateAndSimplifiesWhatsNew (0.00s)
+=== CONT  TestZapretViewUsesReadableLightPanelCopy
+--- PASS: TestRouteFluxACLAllowsUpdateHelpers (0.00s)
+=== CONT  TestXrayUpdateHelperUsesOfficialUpstreamSource
+--- PASS: TestXrayUpdateHelperUsesOfficialUpstreamSource (0.00s)
+=== CONT  TestAboutUpdateHelperRunsExactInstallCommand
+--- PASS: TestZapretViewUsesReadableLightPanelCopy (0.00s)
+=== CONT  TestZapretViewRemovesDarkShellAroundLightPanels
+--- PASS: TestAboutUpdateHelperRunsExactInstallCommand (0.00s)
+=== CONT  TestFirewallViewKeepsIntroOnThemeColors
+--- PASS: TestZapretViewRemovesDarkShellAroundLightPanels (0.00s)
+=== CONT  TestZapretViewUsesCompactSelectorEditorInsteadOfPresetBlocks
+--- PASS: TestFirewallViewKeepsIntroOnThemeColors (0.00s)
+--- PASS: TestZapretViewUsesCompactSelectorEditorInsteadOfPresetBlocks (0.00s)
+--- PASS: TestSettingsViewRemovesLegacyRuntimeConfigurationControls (0.00s)
+=== CONT  TestSubscriptionsViewKeepsCopyButtonCloseToIDOnDesktop
+=== CONT  TestZapretViewUsesGreenSelectedChoiceState
+=== CONT  TestZapretViewUsesDedicatedCommands
+--- PASS: TestZapretViewUsesGreenSelectedChoiceState (0.00s)
+=== CONT  TestRouteFluxUISharedThemeUsesReadableLightPalette
+--- PASS: TestZapretViewUsesDedicatedCommands (0.00s)
+=== CONT  TestRouteFluxUISharedThemeSupportsLightModeAndPersistence
+--- PASS: TestRouteFluxUISharedThemeSupportsLightModeAndPersistence (0.00s)
+=== CONT  TestRouteFluxUISharedThemeSupportsDarkPremiumShell
+--- PASS: TestRouteFluxUISharedThemeUsesReadableLightPalette (0.00s)
+=== CONT  TestSubscriptionsViewUsesFlagshipDarkShellMarkers
+--- PASS: TestRouteFluxUISharedThemeSupportsDarkPremiumShell (0.00s)
+=== CONT  TestSubscriptionsViewUsesStyledAddSubscriptionPanel
+--- PASS: TestSubscriptionsViewUsesFlagshipDarkShellMarkers (0.00s)
+=== CONT  TestSubscriptionsViewKeepsOverviewSummaryAndCoreActions
+--- PASS: TestSubscriptionsViewUsesStyledAddSubscriptionPanel (0.00s)
+=== CONT  TestSubscriptionsViewSupportsAutoExcludedNodes
+--- PASS: TestSubscriptionsViewKeepsOverviewSummaryAndCoreActions (0.00s)
+--- PASS: TestSubscriptionsViewKeepsCopyButtonCloseToIDOnDesktop (0.00s)
+=== CONT  TestSubscriptionsViewSortsNodesByActiveThenPingLatency
+=== CONT  TestSubscriptionsViewUsesSofterLightAccentsAndReadablePingState
+=== CONT  TestZapretViewIncludesCompactFallbackAndSelectorEditor
+--- PASS: TestSubscriptionsViewSupportsAutoExcludedNodes (0.00s)
+=== CONT  TestSubscriptionsViewCentersSubscriptionMetaTableOnMobile
+--- PASS: TestSubscriptionsViewCentersSubscriptionMetaTableOnMobile (0.00s)
+--- PASS: TestSubscriptionsViewSortsNodesByActiveThenPingLatency (0.00s)
+=== CONT  TestSubscriptionsViewPlacesRecheckInActionStack
+=== CONT  TestSubscriptionsViewCentersHeroCardsAndSummaryBlocksOnSmartphones
+--- PASS: TestSubscriptionsViewPlacesRecheckInActionStack (0.00s)
+=== CONT  TestSubscriptionsViewCentersNodeCardsOnSmartphones
+--- PASS: TestSubscriptionsViewCentersNodeCardsOnSmartphones (0.00s)
+=== CONT  TestSubscriptionsViewResetsNodeColumnWidthsOnSmartphones
+--- PASS: TestSubscriptionsViewResetsNodeColumnWidthsOnSmartphones (0.00s)
+=== CONT  TestSubscriptionsViewStacksNodeActionsOnSmartphones
+--- PASS: TestSubscriptionsViewStacksNodeActionsOnSmartphones (0.00s)
+=== CONT  TestFirewallViewUsesGreenSelectedChoiceState
+--- PASS: TestFirewallViewUsesGreenSelectedChoiceState (0.00s)
+=== CONT  TestFirewallViewReRendersAfterRoutingChoiceChange
+--- PASS: TestSubscriptionsViewCentersHeroCardsAndSummaryBlocksOnSmartphones (0.00s)
+=== CONT  TestFirewallViewUsesPremiumDarkThemeChoicesAndSelectors
+--- PASS: TestFirewallViewReRendersAfterRoutingChoiceChange (0.00s)
+=== CONT  TestOverviewViewShowsActivePingCard
+--- PASS: TestOverviewViewShowsActivePingCard (0.00s)
+=== CONT  TestSettingsViewShowsOnlyAppearanceControls
+--- PASS: TestFirewallViewUsesPremiumDarkThemeChoicesAndSelectors (0.00s)
+=== CONT  TestOverviewViewUsesFlagshipShellMarkers
+=== CONT  TestFirewallViewPersistsOnlyOffAndBypassModes
+=== CONT  TestLuCIMenuKeepsSubscriptionsRoutingZapretDiagnosticsSettingsAndAbout
+=== CONT  TestFirewallViewUsesStructuredKeepDirectSelectorShell
+=== CONT  TestFirewallViewRemovesDarkShellAroundRoutingPanels
+=== CONT  TestFirewallViewRemovesAdvancedRoutingControls
+=== CONT  TestFirewallViewUsesReadableLightInputsAndPlaceholders
+=== CONT  TestSubscriptionsViewUsesStaticNodeTableLayout
+--- PASS: TestSettingsViewShowsOnlyAppearanceControls (0.00s)
+--- PASS: TestSubscriptionsViewUsesSofterLightAccentsAndReadablePingState (0.00s)
+--- PASS: TestOverviewViewUsesFlagshipShellMarkers (0.00s)
+--- PASS: TestFirewallViewPersistsOnlyOffAndBypassModes (0.00s)
+--- PASS: TestLuCIMenuKeepsSubscriptionsRoutingZapretDiagnosticsSettingsAndAbout (0.00s)
+--- PASS: TestFirewallViewRemovesDarkShellAroundRoutingPanels (0.00s)
+--- PASS: TestFirewallViewUsesReadableLightInputsAndPlaceholders (0.00s)
+--- PASS: TestZapretViewIncludesCompactFallbackAndSelectorEditor (0.00s)
+=== CONT  TestSubscriptionsViewUsesDistinctVerticalStackChips
+--- PASS: TestFirewallViewRemovesAdvancedRoutingControls (0.00s)
+=== CONT  TestSubscriptionsViewShowsRemainingTrafficMeter
+--- PASS: TestSubscriptionsViewUsesDistinctVerticalStackChips (0.00s)
+=== CONT  TestSubscriptionsViewShowsCompactStackColumnInNodeTable
+--- PASS: TestSubscriptionsViewShowsRemainingTrafficMeter (0.00s)
+=== CONT  TestSubscriptionsViewShowsConditionalExpirationDateAndRemoveAction
+--- PASS: TestSubscriptionsViewUsesStaticNodeTableLayout (0.00s)
+--- PASS: TestSubscriptionsViewShowsCompactStackColumnInNodeTable (0.00s)
+=== CONT  TestSubscriptionsViewShowsPingControlsAndStates
+--- PASS: TestFirewallViewUsesStructuredKeepDirectSelectorShell (0.00s)
+--- PASS: TestSubscriptionsViewShowsPingControlsAndStates (0.00s)
+--- PASS: TestSubscriptionsViewShowsConditionalExpirationDateAndRemoveAction (0.00s)
+PASS
+ok  	github.com/Blaze757/routeflux/test/luci	0.013s
+FAIL
