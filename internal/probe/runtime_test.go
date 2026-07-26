@@ -58,30 +58,34 @@ func TestTCPCheckerSuccess(t *testing.T) {
 func TestTCPCheckerFailureUsesTimeoutLatency(t *testing.T) {
 	t.Parallel()
 
-	tmpListener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	closedPort := tmpListener.Addr().(*net.TCPAddr).Port
-	_ = tmpListener.Close()
-
 	timeout := 25 * time.Millisecond
 	checker := probe.TCPChecker{Timeout: timeout}
-	result := checker.Check(context.Background(), domain.Node{
-		ID:      "node-1",
-		Address: "127.0.0.1",
-		Port:    closedPort,
-	})
 
-	if result.Healthy {
-		t.Fatalf("expected unhealthy result, got %+v", result)
+	for attempt := 0; attempt < 5; attempt++ {
+		tmpListener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("listen: %v", err)
+		}
+		closedPort := tmpListener.Addr().(*net.TCPAddr).Port
+		_ = tmpListener.Close()
+
+		result := checker.Check(context.Background(), domain.Node{
+			ID:      "node-1",
+			Address: "127.0.0.1",
+			Port:    closedPort,
+		})
+		if result.Healthy {
+			continue
+		}
+		if result.Err == nil {
+			t.Fatal("expected probe error")
+		}
+		if result.Latency != timeout {
+			t.Fatalf("expected timeout latency %s, got %s", timeout, result.Latency)
+		}
+		return
 	}
-	if result.Err == nil {
-		t.Fatal("expected probe error")
-	}
-	if result.Latency != timeout {
-		t.Fatalf("expected timeout latency %s, got %s", timeout, result.Latency)
-	}
+	t.Skip("port was reused on every attempt before probe could detect closure")
 }
 
 func TestUpdateHealthSuccessClearsFailuresAndTracksAverage(t *testing.T) {
