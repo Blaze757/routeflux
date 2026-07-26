@@ -40,8 +40,10 @@ jobs:
 
       - name: Unit tests
         run: |
-          go test ./internal/... ./pkg/... ./cmd/...
-          go test ./test/release/ ./test/luci/
+          for pkg in $(go list ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/); do
+            echo "--- $pkg ---"
+            go test -count=1 "$pkg" || exit 1
+          done
 
       - name: Runtime coverage gate
         run: make coverage-runtime
