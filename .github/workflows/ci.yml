@@ -38,21 +38,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Run all tests
-        run: |
-          go test -v -count=1 ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ 2>&1 | tee /tmp/test-output.txt; rc=${PIPESTATUS[0]}
-          if [ "$rc" -ne 0 ]; then
-            echo "## Test Failures" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -E "^(=== RUN|--- FAIL|--- PASS|FAIL|ok)" /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Full failure context" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -B5 -A20 "^--- FAIL" /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
+      - name: Run tests (runtime packages)
+        run: go test -v -count=1 ./internal/... ./pkg/... ./cmd/...
+
+      - name: Run tests (release scripts)
+        run: go test -v -count=1 ./test/release/
+
+      - name: Run tests (luci)
+        run: go test -v -count=1 ./test/luci/
 
       - name: Runtime coverage gate
         if: success()
