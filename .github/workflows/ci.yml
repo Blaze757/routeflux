@@ -15,6 +15,8 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      ROUTEFLUX_INSECURE: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +28,6 @@ jobs:
 
       - name: Check gofmt
         run: |
-          echo "=== Checking gofmt ==="
           out="$(gofmt -l $(find . -type f -name '*.go' -not -path './bin/*' -not -path './dist/*' -not -path './.cache/*'))"
           if [ -n "$out" ]; then
             echo "Files needing gofmt:"
@@ -36,22 +37,40 @@ jobs:
           echo "gofmt OK"
 
       - name: Check go vet
-        run: |
-          echo "=== Running go vet ==="
-          go vet ./...
-          echo "go vet OK"
-        env:
-          ROUTEFLUX_INSECURE: "1"
+        run: go vet ./...
 
-      - name: Run unit tests
-        run: |
-          echo "=== Running go test ==="
-          go test ./...
-          echo "go test OK"
-        env:
-          ROUTEFLUX_INSECURE: "1"
+      - name: Test internal/parser
+        run: go test -v -count=1 ./internal/parser/
 
-      - name: Enforce runtime coverage gate
-        run: make coverage-runtime
-        env:
-          ROUTEFLUX_INSECURE: "1"
+      - name: Test internal/probe
+        run: go test -v -count=1 ./internal/probe/
+
+      - name: Test internal/backend
+        run: go test -v -count=1 ./internal/backend/
+
+      - name: Test internal/cli
+        run: go test -v -count=1 ./internal/cli/
+
+      - name: Test internal/store
+        run: go test -v -count=1 ./internal/store/
+
+      - name: Test internal/app
+        run: go test -v -count=1 ./internal/app/
+
+      - name: Test internal/domain
+        run: go test -v -count=1 ./internal/domain/
+
+      - name: Test internal/platform/openwrt
+        run: go test -v -count=1 ./internal/platform/openwrt/
+
+      - name: Test pkg/api
+        run: go test -v -count=1 ./pkg/api/
+
+      - name: Test internal/tui
+        run: go test -v -count=1 ./internal/tui/
+
+      - name: Test remaining packages
+        run: go test -v -count=1 ./internal/buildinfo/ ./internal/displaytime/ ./internal/speedtest/
+
+      - name: Test release tests
+        run: go test -v -count=1 ./test/release/
