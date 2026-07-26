@@ -1,4 +1,4 @@
-package cli
+﻿package cli
 
 import (
 	"bytes"
@@ -70,7 +70,7 @@ func buildLogsSnapshot(ctx context.Context, limit int, showAll bool) logsSnapsho
 		if showAll {
 			snapshot.System = lastN(lines, limit)
 		} else {
-			snapshot.System = lastN(filterLogLines(lines, []string{defaultSystemFilterPattern}), limit)
+			snapshot.System = lastN(excludeLogLines(lines, strings.Split(defaultSystemFilterPattern, "|")), limit)
 		}
 		sources = append(sources, logreadPath)
 	} else {
@@ -200,6 +200,41 @@ func filterLogLines(lines []string, patterns []string) []string {
 				filtered = append(filtered, line)
 				break
 			}
+		}
+	}
+
+	return filtered
+}
+
+func excludeLogLines(lines []string, patterns []string) []string {
+	if len(patterns) == 0 {
+		return append([]string(nil), lines...)
+	}
+
+	loweredPatterns := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(strings.ToLower(pattern))
+		if pattern != "" {
+			loweredPatterns = append(loweredPatterns, pattern)
+		}
+	}
+
+	if len(loweredPatterns) == 0 {
+		return append([]string(nil), lines...)
+	}
+
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		lowered := strings.ToLower(line)
+		excluded := false
+		for _, pattern := range loweredPatterns {
+			if strings.Contains(lowered, pattern) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			filtered = append(filtered, line)
 		}
 	}
 

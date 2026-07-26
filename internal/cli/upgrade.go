@@ -1,4 +1,4 @@
-package cli
+﻿package cli
 
 import (
 	"bytes"
@@ -81,7 +81,9 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 				cleanMsg := strings.TrimSpace(strings.Join(cleanLines, "\n"))
 
 				upgradeDir := upgradeInstallerDir()
-				defer os.RemoveAll(upgradeDir)
+				if upgradeInstallerPathOverride == "" {
+					defer os.RemoveAll(upgradeDir)
+				}
 				routefluxUpgradeInstallerPath := upgradeInstallerPathOverride
 				if routefluxUpgradeInstallerPath == "" {
 					routefluxUpgradeInstallerPath = filepath.Join(upgradeDir, "install.sh")
@@ -100,7 +102,9 @@ func runUpgrade(cmd *cobra.Command, jsonOutput bool) error {
 	}
 
 	upgradeDir := upgradeInstallerDir()
-	defer os.RemoveAll(upgradeDir)
+	if upgradeInstallerPathOverride == "" {
+		defer os.RemoveAll(upgradeDir)
+	}
 	routefluxUpgradeInstallerPath := upgradeInstallerPathOverride
 	if routefluxUpgradeInstallerPath == "" {
 		routefluxUpgradeInstallerPath = filepath.Join(upgradeDir, "install.sh")

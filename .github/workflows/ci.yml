@@ -9,7 +9,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   checks:
@@ -39,62 +39,4 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        id: test
-        run: go test -v -count=1 -timeout 120s ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/ > /tmp/test-output.txt 2>&1 || true
-
-      - name: Fail if tests failed
-        if: always()
-        run: |
-          grep "^--- FAIL\|^--- SKIP\|^FAIL\|^panic" /tmp/test-output.txt > /tmp/failures.txt || true
-          echo "=== FULL TEST OUTPUT ===" >> /tmp/failures.txt
-          cat /tmp/test-output.txt >> /tmp/failures.txt
-
-      - name: Commit test output
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const output = fs.readFileSync('/tmp/failures.txt', 'utf8');
-            const sha = context.sha;
-            
-            const { data: ref } = await github.rest.git.getRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: 'heads/main'
-            });
-            
-            const { data: blob } = await github.rest.git.createBlob({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              content: output,
-              encoding: 'utf-8'
-            });
-            
-            const { data: tree } = await github.rest.git.createTree({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              base_tree: ref.object.sha,
-              tree: [{
-                path: 'test-output.log',
-                mode: '100644',
-                type: 'blob',
-                sha: blob.sha
-              }]
-            });
-            
-            const { data: commit } = await github.rest.git.createCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              message: 'ci: commit test output for debugging',
-              tree: tree.sha,
-              parents: [sha]
-            });
-            
-            await github.rest.git.updateRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: 'heads/main',
-              sha: commit.sha,
-              force: true
-            });
+        run: go test -v -count=1 -timeout 120s ./internal/... ./pkg/... ./cmd/... ./test/release/ ./test/luci/
