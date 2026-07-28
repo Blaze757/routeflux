@@ -515,6 +515,8 @@ func TestFirewallManagerDisableRemovesUDPPolicyRouting(t *testing.T) {
 	var mu sync.Mutex
 	var calls []string
 	manager := FirewallManager{
+		NFTPath:  "nft",
+		IPPath:   "ip",
 		ProcRoot: t.TempDir(),
 		RunFunc: func(_ context.Context, binary string, args ...string) error {
 			entry := filepath.Base(binary) + " " + strings.Join(args, " ")
