@@ -67,6 +67,8 @@ type FirewallManager struct {
 	MemInfoPath        string
 	ConntrackMaxPath   string
 	ConntrackCountPath string
+
+	RunFunc func(ctx context.Context, binary string, args ...string) error
 }
 
 type firewallPolicy struct {
@@ -628,6 +630,9 @@ func uint32ToIPv4(value uint32) net.IP {
 }
 
 func (m FirewallManager) run(ctx context.Context, args ...string) error {
+	if m.RunFunc != nil {
+		return m.RunFunc(ctx, m.NFTPath, args...)
+	}
 	cmd := exec.CommandContext(ctx, m.NFTPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -637,6 +642,9 @@ func (m FirewallManager) run(ctx context.Context, args ...string) error {
 }
 
 func (m FirewallManager) runIP(ctx context.Context, args ...string) error {
+	if m.RunFunc != nil {
+		return m.RunFunc(ctx, m.IPPath, args...)
+	}
 	cmd := exec.CommandContext(ctx, m.IPPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

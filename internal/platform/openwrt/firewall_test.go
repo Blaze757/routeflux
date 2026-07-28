@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Blaze757/routeflux/internal/domain"
@@ -456,18 +457,26 @@ func TestFirewallManagerApplyConfiguresUDPPolicyRouting(t *testing.T) {
 
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "calls.log")
-	nftPath := writeExecutable(t, filepath.Join(dir, "nft"), "#!/bin/sh\nprintf 'nft %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
-	ipPath := writeExecutable(t, filepath.Join(dir, "ip"), "#!/bin/sh\nprintf 'ip %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
 	dnsmasqPath := writeExecutable(t, filepath.Join(dir, "dnsmasq"), "#!/bin/sh\nif [ \"$1\" = \"--test\" ]; then\n  exit 0\nfi\necho 'Dnsmasq test binary'\n")
-	servicePath := writeExecutable(t, filepath.Join(dir, "dnsmasq-service"), "#!/bin/sh\nprintf '%s\\n' \"$1\" >> \""+logPath+"\"\nexit 0\n")
+	servicePath := writeExecutable(t, filepath.Join(dir, "dnsmasq-service"), "#!/bin/sh\nprintf '%s\n' \"$1\" >> \x22"+logPath+"\x22\nexit 0\n")
 	snippetPath := filepath.Join(dir, "routeflux.conf")
+
+	var mu sync.Mutex
+	var calls []string
 	manager := FirewallManager{
-		NFTPath:            nftPath,
-		IPPath:             ipPath,
+		NFTPath:            filepath.Join(dir, "nft"),
+		IPPath:             filepath.Join(dir, "ip"),
 		RulesPath:          filepath.Join(dir, "routeflux-firewall.nft"),
 		DNSMasqPath:        dnsmasqPath,
 		DNSMasqServicePath: servicePath,
 		DNSMasqSnippetPath: snippetPath,
+		RunFunc: func(_ context.Context, binary string, args ...string) error {
+			entry := filepath.Base(binary) + " " + strings.Join(args, " ")
+			mu.Lock()
+			calls = append(calls, entry)
+			mu.Unlock()
+			return nil
+		},
 	}
 
 	settings := domain.FirewallSettings{
@@ -487,19 +496,15 @@ func TestFirewallManagerApplyConfiguresUDPPolicyRouting(t *testing.T) {
 		t.Fatalf("apply firewall: %v", err)
 	}
 
-	calls, err := os.ReadFile(logPath)
-	if err != nil {
-		t.Fatalf("read call log: %v", err)
-	}
-
+	log := strings.Join(calls, "\n")
 	for _, want := range []string{
 		"ip rule del fwmark 0x1/0x1 table 100 priority 1000",
 		"ip route del local 0.0.0.0/0 dev lo table 100",
 		"ip route add local 0.0.0.0/0 dev lo table 100",
 		"ip rule add fwmark 0x1/0x1 table 100 priority 1000",
 	} {
-		if !strings.Contains(string(calls), want) {
-			t.Fatalf("calls missing %q\n%s", want, calls)
+		if !strings.Contains(log, want) {
+			t.Fatalf("calls missing %q\n%s", want, log)
 		}
 	}
 }
@@ -507,31 +512,30 @@ func TestFirewallManagerApplyConfiguresUDPPolicyRouting(t *testing.T) {
 func TestFirewallManagerDisableRemovesUDPPolicyRouting(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	logPath := filepath.Join(dir, "calls.log")
-	nftPath := writeExecutable(t, filepath.Join(dir, "nft"), "#!/bin/sh\nprintf 'nft %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
-	ipPath := writeExecutable(t, filepath.Join(dir, "ip"), "#!/bin/sh\nprintf 'ip %s\\n' \"$*\" >> \""+logPath+"\"\nexit 0\n")
+	var mu sync.Mutex
+	var calls []string
 	manager := FirewallManager{
-		NFTPath:   nftPath,
-		IPPath:    ipPath,
-		RulesPath: filepath.Join(dir, "routeflux-firewall.nft"),
+		ProcRoot: t.TempDir(),
+		RunFunc: func(_ context.Context, binary string, args ...string) error {
+			entry := filepath.Base(binary) + " " + strings.Join(args, " ")
+			mu.Lock()
+			calls = append(calls, entry)
+			mu.Unlock()
+			return nil
+		},
 	}
 
 	if err := manager.Disable(context.Background()); err != nil {
 		t.Fatalf("disable firewall: %v", err)
 	}
 
-	calls, err := os.ReadFile(logPath)
-	if err != nil {
-		t.Fatalf("read call log: %v", err)
-	}
-
+	log := strings.Join(calls, "\n")
 	for _, want := range []string{
 		"ip rule del fwmark 0x1/0x1 table 100 priority 1000",
 		"ip route del local 0.0.0.0/0 dev lo table 100",
 	} {
-		if !strings.Contains(string(calls), want) {
-			t.Fatalf("calls missing %q\n%s", want, calls)
+		if !strings.Contains(log, want) {
+			t.Fatalf("calls missing %q\n%s", want, log)
 		}
 	}
 }
